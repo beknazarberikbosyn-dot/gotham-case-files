@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Готэм: Дела стажёра</title>
+<meta name="description" content="Интерактивный детектив: ты — новый Робин на стажировке у Бэтмена.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Balsamiq+Sans:wght@400;700&family=Press+Start+2P&family=Russo+One&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- общие узоры для комиксной графики -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <pattern id="ht" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
+      <circle cx="4" cy="4" r="1.7" fill="#fff"/>
+    </pattern>
+    <pattern id="htk" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
+      <circle cx="3.5" cy="3.5" r="1.6" fill="#000"/>
+    </pattern>
+    <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="2.2" height="7" fill="#fff"/>
+    </pattern>
+    <pattern id="hatchk" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+      <rect width="2.4" height="6" fill="#000"/>
+    </pattern>
+  </defs>
+</svg>
+
+<!-- ============ ЗАСТАВКА (пиксели) ============ -->
+<section id="intro" class="screen active">
+  <canvas id="road" class="px-canvas" width="320" height="180"></canvas>
+  <div class="intro-ui">
+    <header class="px-head">
+      <h1 class="px-title">ГОТЭМ<span>ДЕЛА СТАЖЁРА</span></h1>
+      <p class="px-sub" id="pxSub">Патруль. Ночь. Дождь.</p>
+    </header>
+    <div id="files" class="files" hidden>
+      <p class="px-prompt">ВЫБЕРИ ДЕЛО, РОБИН</p>
+      <div class="stack">
+        <div class="folder locked l2"><span class="tab">ДЕЛО №3</span><b>ЗАСЕКРЕЧЕНО</b><i>скоро</i></div>
+        <div class="folder locked l1"><span class="tab">ДЕЛО №2</span><b>ЗАСЕКРЕЧЕНО</b><i>скоро</i></div>
+        <button class="folder open" id="case1Btn">
+          <span class="tab">ДЕЛО №1</span>
+          <b>МЁРТВЫЕ ДАТЫ</b>
+          <i>3 тела · на лбу у каждого — дата</i>
+          <em id="bestBadge"></em>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ДЕЛО (комикс) ============ -->
+<section id="case" class="screen">
+  <header class="hud">
+    <div class="hud-title"><span>ДЕЛО №1</span> МЁРТВЫЕ ДАТЫ</div>
+    <div class="hud-stats">
+      <div class="stat">МЕСТО <b id="hudPlace">1/4</b></div>
+      <div class="stat">УЛИКИ <b id="hudClues">0/4</b></div>
+      <div class="stat">ПОДСКАЗКИ <b id="hudHints">0</b></div>
+      <button id="detBtn" class="det-btn" aria-pressed="false">◉ РЕЖИМ ДЕТЕКТИВА</button>
+    </div>
+  </header>
+
+  <main class="stage">
+    <section class="panel-wrap">
+      <div class="loc" id="loc"></div>
+      <div class="scene" id="scene"></div>
+      <div class="narr" id="narr"></div>
+    </section>
+    <aside class="notebook">
+      <h3>БЛОКНОТ СТАЖЁРА</h3>
+      <ol id="notes"></ol>
+      <p class="empty" id="notesEmpty">Пока пусто. Осмотри место преступления: нажимай на предметы, которые кажутся важными.</p>
+      <button id="nextBtn" class="btn red" hidden>СЛЕДУЮЩЕЕ МЕСТО →</button>
+    </aside>
+  </main>
+
+  <!-- загадка -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <header><h2 id="mTitle"></h2><button class="x" id="mClose" aria-label="Закрыть">×</button></header>
+      <div class="m-body">
+        <div id="mExhibit" class="exhibit"></div>
+        <p id="mQuestion" class="question"></p>
+        <div id="mAnswer" class="answer"></div>
+        <p id="mFeedback" class="feedback"></p>
+        <div id="mConclusion" class="conclusion" hidden></div>
+      </div>
+      <footer>
+        <button class="btn ghost" id="mHint">СПРОСИТЬ БЭТМЕНА</button>
+        <button class="btn red" id="mCheck">ПРОВЕРИТЬ</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Бэтмен -->
+  <div class="bat" id="bat" hidden>
+    <div class="bat-face" id="batFace"></div>
+    <div class="bat-say"><span class="bat-tag" id="batTag">БЭТМЕН</span><p id="batText"></p><button class="btn red bat-act" id="batAct" hidden></button></div>
+    <button class="x" id="batClose" aria-label="Скрыть">×</button>
+  </div>
+
+  <!-- сюжетные страницы -->
+  <div class="story" id="story" hidden>
+    <div class="story-page">
+      <div class="story-art" id="storyArt"></div>
+      <div class="story-cap" id="storyCap"></div>
+      <div class="story-text" id="storyText"></div>
+      <button class="btn red" id="storyNext">ДАЛЬШЕ →</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ПЕЩЕРА (пиксели) ============ -->
+<section id="cave" class="screen">
+  <canvas id="caveCanvas" class="px-canvas" width="320" height="180"></canvas>
+  <div class="cave-ui">
+    <h2 class="px-title small">ДЕЛО ЗАКРЫТО</h2>
+    <div class="score-box">
+      <p class="score" id="scoreNum">0</p>
+      <p class="px-line">ОЧКИ СТАЖИРОВКИ</p>
+      <p class="px-line" id="scoreRank"></p>
+      <p class="px-line dim" id="scoreDetail"></p>
+      <p class="px-quote" id="scoreQuote"></p>
+      <button class="px-btn" id="againBtn" style="justify-self:start">К ДЕЛАМ</button>
+    </div>
+  </div>
+</section>
+
+<canvas id="wipe" class="wipe" width="32" height="18"></canvas>
+
+<script src="js/pixel.js"></script>
+<script src="js/art.js"></script>
+<script src="js/case1.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
