@@ -309,5 +309,220 @@
     `, '0 0 800 420');
   }
 
-  window.Art = { scene1, scene2, scene3, scene4, batman, splash, basement, capture, gordon, clock, RED };
+  /* ================================================================
+     ДЕЛО №2 — «Безумное чаепитие»
+     ================================================================ */
+  const F = 'font-family="Russo One, Arial Black, sans-serif"';
+  // цилиндр с карточкой «10/6»
+  const hat = (x, y, s, rot) => `<g transform="translate(${x} ${y}) rotate(${rot || 0}) scale(${s || 1})">
+    <ellipse cx="0" cy="0" rx="46" ry="10" fill="#000" stroke="#fff" stroke-width="3"/>
+    <path d="M-28 -2L-32 -58Q0 -70 32 -58L28 -2Q0 6 -28 -2z" fill="#000" stroke="#fff" stroke-width="3"/>
+    <path d="M-29 -16Q0 -8 29 -16L28 -4Q0 4 -28 -4z" fill="#fff"/>
+    <g transform="rotate(-12 16 -24)"><rect x="4" y="-36" width="24" height="26" fill="#fff" stroke="${RED}" stroke-width="2.5"/><text x="16" y="-18" ${F} font-size="10" text-anchor="middle" fill="${RED}">10/6</text></g></g>`;
+  const cup = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s || 1})"><ellipse cx="0" cy="12" rx="20" ry="5" fill="#fff"/><path d="M-12 -8h24l-3 18h-18z" fill="#fff" stroke="#000" stroke-width="2"/><path d="M12 -4q10 2 4 10" fill="none" stroke="#fff" stroke-width="3"/></g>`;
+  const teapot = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s || 1})" fill="#fff"><ellipse cx="0" cy="0" rx="26" ry="20"/><rect x="-12" y="-26" width="24" height="8" rx="3"/><circle cx="0" cy="-30" r="5"/><path d="M24 -4q18 -4 22 -20l8 2q-4 26 -28 30z"/><path d="M-24 -8q-20 0 -16 14q4 10 18 6" fill="none" stroke="#fff" stroke-width="5"/></g>`;
+  // чайный столик со скатертью
+  const teaTable = (x, y, w) => `<ellipse cx="${x}" cy="${y}" rx="${w}" ry="${w * 0.24}" fill="#fff"/><path d="M${x - w} ${y}q${w * 0.1} ${w * 0.7} ${w * 0.25} ${w * 0.9}h${w * 1.5}q${w * 0.15} -${w * 0.2} ${w * 0.25} -${w * 0.9}q-${w} ${w * 0.5} -${w * 2} 0z" fill="#000" stroke="#fff" stroke-width="3"/>
+    <path d="M${x - w} ${y}q${w * 0.1} ${w * 0.7} ${w * 0.25} ${w * 0.9}h${w * 1.5}q${w * 0.15} -${w * 0.2} ${w * 0.25} -${w * 0.9}q-${w} ${w * 0.5} -${w * 2} 0z" fill="url(#hatch)" opacity=".22"/>`;
+
+  /* ---------- МЕСТО 1: хранилище банка ---------- */
+  function c2s1() {
+    const boxes = range(54).map(i => { const c = i % 9, r = Math.floor(i / 9), x = 420 + c * 40, y = 44 + r * 44; const open = c === 3 && r === 2;
+      return open ? `<rect x="${x}" y="${y}" width="36" height="40" fill="#000" stroke="${RED}" stroke-width="3"/><rect x="${x + 6}" y="${y + 8}" width="46" height="34" fill="#000" stroke="#fff" stroke-width="2" transform="skewX(-12)"/><circle cx="${x + 18}" cy="${y + 20}" r="8" fill="${RED}"/><path d="M${x + 12} ${y + 14}q6 -12 12 0" fill="none" stroke="${RED}" stroke-width="3"/>`
+        : `<rect x="${x}" y="${y}" width="36" height="40" fill="#000" stroke="#fff" stroke-width="2"/><circle cx="${x + 28}" cy="${y + 20}" r="3" fill="#fff"/><rect x="${x + 6}" y="${y + 8}" width="14" height="5" fill="#fff"/>`; }).join('');
+    return svg(`
+    <rect width="800" height="500" fill="#000"/>
+    <rect x="400" y="20" width="400" height="300" fill="url(#ht)" opacity=".08"/>
+    <!-- дверь хранилища -->
+    <circle cx="180" cy="210" r="172" fill="#000" stroke="#fff" stroke-width="6"/>
+    <circle cx="180" cy="210" r="150" fill="url(#hatch)" opacity=".2"/>
+    <circle cx="180" cy="210" r="150" fill="none" stroke="#fff" stroke-width="3"/>
+    <g fill="#fff">${range(16).map(i => `<circle cx="${(180 + Math.cos(i * 0.3927) * 161).toFixed(0)}" cy="${(210 + Math.sin(i * 0.3927) * 161).toFixed(0)}" r="5"/>`).join('')}</g>
+    <circle cx="180" cy="210" r="62" fill="#000" stroke="#fff" stroke-width="5"/>
+    <g stroke="#fff" stroke-width="9" stroke-linecap="round">${range(4).map(i => `<line x1="180" y1="210" x2="${(180 + Math.cos(i * 0.785 + .3) * 96).toFixed(0)}" y2="${(210 + Math.sin(i * 0.785 + .3) * 96).toFixed(0)}"/><line x1="180" y1="210" x2="${(180 - Math.cos(i * 0.785 + .3) * 96).toFixed(0)}" y2="${(210 - Math.sin(i * 0.785 + .3) * 96).toFixed(0)}"/>`).join('')}</g>
+    <circle cx="180" cy="210" r="20" fill="#fff"/>
+    <path d="M352 60v330" stroke="#fff" stroke-width="10"/>
+    <!-- ячейки -->
+    ${boxes}
+    <line x1="0" y1="330" x2="800" y2="330" stroke="#fff" stroke-width="3"/>
+    <path d="M360 330l-200 170h620l-60 -170z" fill="#fff" opacity=".1"/>
+    <!-- стул и цилиндр -->
+    <g stroke="#fff" stroke-width="4" fill="#000"><path d="M296 250h56v110h-56z"/><path d="M286 360h84v14h-84z"/><path d="M294 374v90M362 374v90"/></g>
+    <path d="M296 250h56v110h-56z" fill="url(#hatch)" opacity=".25"/>
+    ${hat(328, 356, 0.9, -6)}
+    <!-- столик -->
+    ${teaTable(500, 392, 130)}
+    ${teapot(500, 356, 1)}
+    ${cup(410, 380, 0.9)}${cup(600, 372, 0.9)}${cup(470, 404, 0.9)}
+    <g transform="rotate(-8 440 392)"><rect x="416" y="378" width="52" height="30" fill="#fff" stroke="#000" stroke-width="2"/><path d="M422 386h40M422 393h40M422 400h30" stroke="${RED}" stroke-width="2" stroke-dasharray="3 2"/></g>
+    <g fill="#fff" stroke="#000" stroke-width="2"><path d="M520 398l14 -18l14 18z"/><path d="M548 402l14 -18l14 18z"/><path d="M528 414l15 -19l15 19z" fill="#f1ecdf"/></g>
+    <path d="M536 410h14" stroke="${RED}" stroke-width="2"/>
+    `);
+  }
+
+  /* ---------- МЕСТО 2: зал зеркал ---------- */
+  function c2s2() {
+    const glare = (x, y, w, h) => `<path d="M${x + w * 0.15} ${y + h * 0.75}L${x + w * 0.6} ${y + h * 0.1}M${x + w * 0.4} ${y + h * 0.9}L${x + w * 0.85} ${y + h * 0.3}" stroke="#000" stroke-width="5"/>`;
+    const mir = (x, y, w, h, oval) => (oval ? `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}" fill="#fff" stroke="#fff" stroke-width="8"/><ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2 + 8}" ry="${h / 2 + 8}" fill="none" stroke="#000" stroke-width="3"/>` : `<rect x="${x - 8}" y="${y - 8}" width="${w + 16}" height="${h + 16}" fill="#000" stroke="#fff" stroke-width="3"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#fff"/>`) + glare(x, y, w, h);
+    return svg(`
+    <rect width="800" height="500" fill="#000"/>
+    <rect width="800" height="340" fill="url(#ht)" opacity=".09"/>
+    <line x1="0" y1="340" x2="800" y2="340" stroke="#fff" stroke-width="3"/>
+    ${mir(190, 60, 90, 140, true)}${mir(500, 70, 80, 120, false)}${mir(610, 210, 60, 80, true)}${mir(250, 230, 70, 70, false)}${mir(500, 230, 70, 70, true)}
+    <!-- пустое место -->
+    <rect x="352" y="84" width="96" height="150" fill="#000" stroke="#fff" stroke-width="2" stroke-dasharray="8 7"/>
+    <path d="M400 60v24M392 84h16" stroke="#fff" stroke-width="4"/>
+    <g transform="rotate(4 400 130)"><rect x="372" y="96" width="56" height="74" fill="#fff"/><g stroke="${RED}" stroke-width="2.5">${range(6).map(i => `<line x1="${422 - (i % 2) * 8}" y1="${108 + i * 10}" x2="378" y2="${108 + i * 10}"/>`).join('')}</g></g>
+    <!-- картина и сейф -->
+    <g transform="rotate(-18 60 60)"><rect x="40" y="70" width="110" height="80" fill="#000" stroke="#fff" stroke-width="5"/><path d="M48 142l30 -40l22 26l16 -18l26 32z" fill="#fff"/></g>
+    <rect x="70" y="92" width="84" height="70" fill="#000" stroke="#fff" stroke-width="4"/><circle cx="112" cy="127" r="20" fill="#000" stroke="#fff" stroke-width="4"/><path d="M112 127v-16" stroke="${RED}" stroke-width="4"/><rect x="140" y="120" width="8" height="18" fill="#fff"/>
+    <!-- камера -->
+    <path d="M720 0v26l40 18v-20z" fill="#fff"/><circle cx="756" cy="34" r="5" fill="${RED}"/><path d="M740 44v20h22" stroke="#fff" stroke-width="3" fill="none"/>
+    <!-- ваза с розами -->
+    <path d="M690 500v-150h70v150z" fill="#000" stroke="#fff" stroke-width="4"/><path d="M690 350h70v150h-70z" fill="url(#hatch)" opacity=".25"/>
+    <path d="M706 350q-10 -40 8 -64h22q18 24 8 64z" fill="#fff"/>
+    <g stroke="#fff" stroke-width="3">${[[700, 236], [722, 214], [746, 230], [712, 252], [738, 256], [728, 190], [752, 204]].map(p => `<line x1="725" y1="290" x2="${p[0]}" y2="${p[1]}"/>`).join('')}</g>
+    <g fill="${RED}">${[[700, 236], [722, 214], [746, 230], [712, 252], [738, 256], [728, 190], [752, 204]].map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="12"/>`).join('')}</g>
+    <path d="M700 248q-2 30 2 50M746 242q4 40 0 70M728 202q0 18 2 28" stroke="${RED}" stroke-width="3" fill="none"/>
+    <g fill="${RED}"><ellipse cx="660" cy="470" rx="20" ry="6"/><ellipse cx="640" cy="486" rx="8" ry="3"/></g>
+    <rect x="610" y="430" width="34" height="38" fill="#fff"/><rect x="606" y="426" width="42" height="8" fill="#fff"/><path d="M620 426l-14 -40" stroke="#fff" stroke-width="5"/><path d="M604 384l-6 -16l12 6z" fill="${RED}"/>
+    <!-- столик с кроликом -->
+    ${teaTable(220, 410, 120)}
+    ${teapot(290, 378, 0.9)}${cup(140, 396, 0.9)}
+    <g transform="translate(186 384)"><path d="M-16 0q-6 -44 16 -48q22 4 16 48z" fill="#fff"/><circle cx="0" cy="-58" r="17" fill="#fff"/><path d="M-10 -70q-8 -34 2 -40q8 6 4 38zM8 -72q4 -34 14 -36q6 10 -6 38z" fill="#fff"/>
+      <circle cx="-6" cy="-60" r="2.5" fill="#000"/><circle cx="7" cy="-60" r="2.5" fill="#000"/><path d="M-14 -34h28v22h-28z" fill="${RED}"/><circle cx="0" cy="-22" r="8" fill="#fff" stroke="#000" stroke-width="2"/><path d="M0 -22v-5" stroke="#000" stroke-width="2"/>
+      <path d="M22 -30h12m-4 -6v12" stroke="#fff" stroke-width="3"/></g>
+    <!-- карты на полу -->
+    <g stroke="#000" stroke-width="2" fill="#fff">${[[430, 440, -20], [470, 462, 14], [520, 444, 40]].map(p => `<rect x="${p[0]}" y="${p[1]}" width="26" height="36" transform="rotate(${p[2]} ${p[0] + 13} ${p[1] + 18})"/>`).join('')}</g>
+    `);
+  }
+
+  /* ---------- МЕСТО 3: шахматный клуб ---------- */
+  function c2s3() {
+    const board = (x, y, s) => { let h = ''; for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) if ((r + c) % 2 === 0) h += `<rect x="${c * 10}" y="${r * 10}" width="10" height="10" fill="#fff"/>`;
+      return `<g transform="translate(${x} ${y}) scale(${s} ${s * 0.5}) skewX(-28)"><rect x="-4" y="-4" width="88" height="88" fill="#000" stroke="#fff" stroke-width="3"/>${h}</g>`; };
+    const pawn = (x, y, col, st) => `<g transform="translate(${x} ${y})" fill="${col}" stroke="${st}" stroke-width="1.5"><circle cx="0" cy="-12" r="4"/><path d="M-5 0l2 -9h6l2 9z"/></g>`;
+    const locker = (x, red) => `<rect x="${x}" y="130" width="60" height="210" fill="#000" stroke="#fff" stroke-width="4"/><g stroke="#fff" stroke-width="2">${range(4).map(i => `<line x1="${x + 12}" y1="${146 + i * 8}" x2="${x + 48}" y2="${146 + i * 8}"/>`).join('')}</g><rect x="${x + 40}" y="232" width="10" height="20" fill="${red ? RED : '#fff'}"/>${red ? `<rect x="${x + 10}" y="190" width="40" height="14" fill="#000" stroke="${RED}" stroke-width="2" stroke-dasharray="4 3"/><g transform="rotate(10 ${x + 46} 270)"><rect x="${x + 34}" y="256" width="22" height="26" fill="#fff" stroke="${RED}" stroke-width="2"/><text x="${x + 45}" y="273" ${F} font-size="9" text-anchor="middle" fill="${RED}">10/6</text></g>` : `<rect x="${x + 10}" y="190" width="40" height="14" fill="#fff"/>`}`;
+    return svg(`
+    <rect width="800" height="500" fill="#000"/>
+    <rect width="800" height="340" fill="url(#ht)" opacity=".08"/>
+    <line x1="0" y1="340" x2="800" y2="340" stroke="#fff" stroke-width="3"/>
+    <!-- окно -->
+    <rect x="40" y="40" width="200" height="170" fill="#fff"/>${rainLines(40, 40, 200, 150, 30, 5)}
+    <g fill="#000"><rect x="137" y="40" width="6" height="170"/><rect x="40" y="122" width="200" height="6"/></g>
+    <path d="M40 210h200l120 290h-420z" fill="#fff" opacity=".1"/>
+    <!-- портреты и кубок -->
+    ${[290, 590].map(x => `<rect x="${x}" y="50" width="70" height="90" fill="#000" stroke="#fff" stroke-width="4"/><circle cx="${x + 35}" cy="84" r="16" fill="#fff"/><path d="M${x + 10} 136q4 -34 25 -34q21 0 25 34z" fill="#fff"/>`).join('')}
+    <path d="M520 150h40l-6 30q-14 16 -28 0zM530 196h20v10h-20zM522 206h36v8h-36z" fill="#fff"/><rect x="496" y="214" width="88" height="8" fill="#fff"/>
+    <!-- лампа и карточка -->
+    <path d="M440 0v70" stroke="#fff" stroke-width="3"/><path d="M400 110l40 -44l40 44z" fill="#fff"/><path d="M400 110h80l150 230h-380z" fill="#fff" opacity=".12"/>
+    <g transform="rotate(5 380 130)"><rect x="344" y="92" width="62" height="74" fill="#fff" stroke="#000" stroke-width="2"/><g stroke="#000" stroke-width="2">${range(4).map(i => `<line x1="352" y1="${106 + i * 11}" x2="398" y2="${106 + i * 11}"/>`).join('')}</g><line x1="352" y1="154" x2="384" y2="154" stroke="${RED}" stroke-width="3"/></g>
+    <!-- шкафчики -->
+    ${locker(580, false)}${locker(644, true)}${locker(708, false)}
+    <!-- стол с доской -->
+    <path d="M250 350h330l40 34h-410z" fill="#fff"/><path d="M210 384h410v22h-410z" fill="#000" stroke="#fff" stroke-width="3"/><path d="M240 406v94M590 406v94" stroke="#fff" stroke-width="8"/>
+    ${board(330, 300, 2.1)}
+    ${[0, 1, 2, 4, 5, 6, 7].map(i => pawn(308 + i * 21, 362, '#fff', '#000')).join('')}
+    ${range(8).map(i => pawn(356 + i * 21, 316, '#000', '#fff')).join('')}
+    <ellipse cx="371" cy="363" rx="9" ry="4" fill="none" stroke="${RED}" stroke-width="2.5"/>
+    <g><rect x="520" y="318" width="64" height="34" fill="#000" stroke="#fff" stroke-width="3"/><circle cx="537" cy="335" r="10" fill="#fff"/><circle cx="567" cy="335" r="10" fill="#fff"/><path d="M537 335v-7M567 335l5 -4" stroke="#000" stroke-width="2"/></g>
+    <!-- столик эксперта: чип под лупой -->
+    <path d="M40 348h140v12h-140z" fill="#fff"/><path d="M56 360v140M164 360v140" stroke="#fff" stroke-width="6"/>
+    <rect x="74" y="330" width="40" height="18" fill="#000" stroke="#fff" stroke-width="2"/><rect x="86" y="335" width="16" height="8" fill="${RED}"/>
+    <path d="M150 348v-40q0 -24 -34 -26" stroke="#fff" stroke-width="5" fill="none"/><circle cx="104" cy="290" r="20" fill="#000" stroke="#fff" stroke-width="5"/><circle cx="104" cy="290" r="11" fill="${RED}" opacity=".85"/>
+    <!-- чайный столик в глубине -->
+    ${cup(690, 420, 1.1)}${hat(720, 470, 0.8, 8)}
+    `);
+  }
+
+  /* ---------- МЕСТО 4: чайная ---------- */
+  function c2s4() {
+    const tins = range(24).map(i => { const c = i % 8, r = Math.floor(i / 8); return `<rect x="${470 + c * 26}" y="${70 + r * 52}" width="20" height="${30 + (i * 7) % 10}" fill="${(i * 5) % 7 === 0 ? '#fff' : '#000'}" stroke="#fff" stroke-width="2" transform="translate(0 ${10 - (i * 7) % 10})"/>`; }).join('');
+    const card = (x, y, r) => `<path d="M${x} ${y}l10 -14l10 14z" fill="#fff" stroke="#000" stroke-width="1.5" transform="rotate(${r} ${x + 10} ${y})"/>`;
+    return svg(`
+    <rect width="800" height="500" fill="#000"/>
+    <rect width="800" height="330" fill="url(#ht)" opacity=".08"/>
+    <line x1="0" y1="330" x2="800" y2="330" stroke="#fff" stroke-width="3"/>
+    <!-- пробковая доска -->
+    <rect x="48" y="74" width="172" height="156" fill="#000" stroke="#fff" stroke-width="5"/><rect x="48" y="74" width="172" height="156" fill="url(#ht)" opacity=".25"/>
+    <g fill="#fff" stroke="#000" stroke-width="2"><rect x="60" y="86" width="56" height="64" transform="rotate(-4 88 118)"/><rect x="128" y="84" width="76" height="46"/><rect x="62" y="160" width="62" height="56" transform="rotate(3 93 188)"/><rect x="140" y="142" width="64" height="74" transform="rotate(-3 172 180)"/></g>
+    <g transform="rotate(8 130 150)"><rect x="92" y="126" width="80" height="48" fill="#fff" stroke="${RED}" stroke-width="3"/><path d="M100 140h62M100 150h62M100 160h40" stroke="${RED}" stroke-width="2"/><circle cx="132" cy="126" r="6" fill="${RED}"/></g>
+    <!-- часы с кукушкой -->
+    <path d="M400 30l-56 50h112z" fill="#fff"/><rect x="356" y="80" width="88" height="92" fill="#000" stroke="#fff" stroke-width="4"/>
+    <circle cx="400" cy="124" r="30" fill="#fff"/><path d="M400 124l-6 -18M400 124l22 8" stroke="#000" stroke-width="4" stroke-linecap="round"/>
+    <rect x="388" y="56" width="24" height="18" fill="#000"/><path d="M382 172v60M418 172v44" stroke="#fff" stroke-width="2"/><path d="M374 232h16l-8 22zM412 216h12l-6 18z" fill="#fff"/>
+    <path d="M400 172v36" stroke="#fff" stroke-width="3"/><circle cx="400" cy="216" r="10" fill="#fff"/><rect x="406" y="196" width="18" height="12" fill="${RED}" transform="rotate(14 415 202)"/>
+    <!-- полки с чаем и стойка -->
+    <g stroke="#fff" stroke-width="3"><line x1="460" y1="112" x2="680" y2="112"/><line x1="460" y1="164" x2="680" y2="164"/><line x1="460" y1="216" x2="680" y2="216"/></g>${tins}
+    <path d="M440 250h260v80h-260z" fill="#000" stroke="#fff" stroke-width="4"/><path d="M440 250h260v80h-260z" fill="url(#hatch)" opacity=".22"/><rect x="430" y="240" width="280" height="12" fill="#fff"/>
+    ${teapot(520, 222, 0.8)}${cup(600, 228, 0.8)}
+    <!-- вешалка с цилиндром -->
+    <path d="M724 500V130M724 150l-30 -22M724 150l30 -22M724 200l-26 -16M724 200l26 -16" stroke="#fff" stroke-width="5" fill="none"/><path d="M690 500h68" stroke="#fff" stroke-width="8"/>
+    ${hat(700, 172, 0.85, -14)}
+    <!-- окно с вывеской -->
+    <rect x="252" y="80" width="74" height="150" fill="#fff"/>${rainLines(252, 80, 74, 130, 14, 23)}<rect x="286" y="80" width="5" height="150" fill="#000"/>
+    <!-- стол Алисы -->
+    <ellipse cx="392" cy="392" rx="130" ry="34" fill="#fff"/><path d="M380 426h24v74h-24z" fill="#fff"/><ellipse cx="392" cy="392" rx="130" ry="34" fill="none" stroke="#000" stroke-width="2"/>
+    ${card(300, 392, -10)}${card(340, 376, 6)}${card(388, 372, -4)}${card(440, 378, 10)}${card(470, 396, -8)}${card(330, 410, 4)}
+    <g transform="rotate(-6 400 400)"><rect x="372" y="386" width="58" height="34" fill="#f1ecdf" stroke="#000" stroke-width="2"/><path d="M378 394h46M378 401h46M378 408h34" stroke="#000" stroke-width="1.5"/></g>
+    <!-- стулья -->
+    <g stroke="#fff" stroke-width="4" fill="#000"><path d="M214 330h44v90h-44z"/><path d="M206 420h60v10h-60zM214 430v70M258 430v70"/><path d="M536 330h44v90h-44z"/><path d="M528 420h60v10h-60zM536 430v70M580 430v70"/></g>
+    <!-- фартук и разбитая чашка -->
+    <path d="M90 440q30 -24 70 -8q20 20 60 14l-10 34q-60 16 -130 -6z" fill="#fff"/><path d="M100 440q-20 -20 -40 -8M214 446q20 -10 30 6" stroke="#fff" stroke-width="3" fill="none"/>
+    <g fill="#fff" stroke="#000" stroke-width="1.5"><path d="M620 450l16 -10l8 16l-14 8z"/><path d="M650 462l14 -4l2 12z"/><path d="M604 470l10 -2l-2 10z"/></g><ellipse cx="634" cy="474" rx="28" ry="6" fill="${RED}" opacity=".8"/>
+    `);
+  }
+
+  /* ---------- сюжетные панели ---------- */
+  function splash2() {
+    return svg(`
+    <rect width="800" height="420" fill="#000"/>
+    <rect width="800" height="420" fill="url(#ht)" opacity=".08"/>
+    <path d="M0 420V330h60v-40h50v70h70v-90h40v110h80v-60h60v80h70v-110h50v90h60v-50h70v70h60v-90h50v110h80z" fill="#fff" opacity=".9"/>
+    ${rainLines(0, 0, 800, 300, 80, 61, '#fff')}
+    <circle cx="640" cy="100" r="62" fill="#fff"/><path d="M640 100V58M640 100v42" stroke="#000" stroke-width="7" stroke-linecap="round"/><circle cx="640" cy="100" r="6" fill="${RED}"/>
+    <g fill="#000">${range(12).map(i => `<rect x="637" y="42" width="6" height="${i % 3 ? 8 : 14}" transform="rotate(${i * 30} 640 100)"/>`).join('')}</g>
+    ${hat(250, 300, 3.4, -8)}
+    ${cup(470, 350, 2.2)}
+    `, '0 0 800 420');
+  }
+
+  function park() {
+    const tcup = (x, y, s, fig) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-46 -30h92l-10 56q-36 14 -72 0z" fill="#000" stroke="#fff" stroke-width="4"/><path d="M46 -18q30 4 14 30l-18 6" fill="none" stroke="#fff" stroke-width="5"/><ellipse cx="0" cy="-30" rx="46" ry="9" fill="#fff"/>
+      ${fig ? `<circle cx="0" cy="-50" r="13" fill="#fff"/><g transform="translate(0 -62) scale(.42)"><ellipse cx="0" cy="0" rx="46" ry="10" fill="#000" stroke="#fff" stroke-width="5"/><path d="M-28 -2L-32 -58Q0 -70 32 -58L28 -2z" fill="#000" stroke="#fff" stroke-width="5"/><rect x="2" y="-40" width="22" height="24" fill="${RED}"/></g>` : ''}</g>`;
+    return svg(`
+    <rect width="800" height="420" fill="#000"/>
+    <circle cx="150" cy="150" r="120" fill="none" stroke="#fff" stroke-width="5"/><circle cx="150" cy="150" r="14" fill="#fff"/>
+    <g stroke="#fff" stroke-width="2">${range(12).map(i => `<line x1="150" y1="150" x2="${(150 + Math.cos(i * 0.5236) * 120).toFixed(0)}" y2="${(150 + Math.sin(i * 0.5236) * 120).toFixed(0)}"/>`).join('')}</g>
+    <g fill="#fff">${range(12).map(i => `<rect x="${(140 + Math.cos(i * 0.5236) * 120).toFixed(0)}" y="${(146 + Math.sin(i * 0.5236) * 120).toFixed(0)}" width="20" height="16"/>`).join('')}</g>
+    <path d="M100 420l50 -270l50 270" fill="none" stroke="#fff" stroke-width="5"/>
+    <path d="M500 96h240" stroke="#fff" stroke-width="3" opacity=".6"/><text x="620" y="84" ${F} font-size="20" text-anchor="middle" fill="#fff" opacity=".7">СТРАНА ЧУДЕС</text>
+    ${rainLines(0, 0, 800, 420, 110, 71, '#fff')}
+    <ellipse cx="470" cy="360" rx="330" ry="56" fill="#fff"/><ellipse cx="470" cy="360" rx="330" ry="56" fill="url(#htk)" opacity=".35"/>
+    <path d="M140 360q0 60 330 60t330 -60v24q0 60 -330 60t-330 -60z" fill="#000" stroke="#fff" stroke-width="3"/>
+    ${tcup(300, 300, 0.9, true)}${tcup(470, 276, 0.8, true)}${tcup(640, 300, 0.9, true)}
+    <g transform="translate(470 372)"><path d="M-54 -34h108l-12 64q-42 16 -84 0z" fill="#000" stroke="${RED}" stroke-width="4"/><ellipse cx="0" cy="-34" rx="54" ry="10" fill="#fff"/><circle cx="0" cy="-58" r="15" fill="#fff"/><path d="M-15 -62q0 -22 15 -22q15 0 15 22q-6 -8 -15 -8q-9 0 -15 8z" fill="#000"/><path d="M-22 -40q22 10 44 0" stroke="${RED}" stroke-width="4" fill="none"/></g>
+    `, '0 0 800 420');
+  }
+
+  function hatter() {
+    return svg(`
+    <rect width="800" height="420" fill="${RED}"/>
+    <rect width="800" height="420" fill="url(#htk)" opacity=".3"/>
+    <path d="M250 420q10 -110 150 -120q140 10 150 120z" fill="#000"/>
+    <path d="M360 318l40 34l40 -34l14 40l-54 22l-54 -22z" fill="#fff"/>
+    <path d="M330 220q-6 96 70 104q76 -8 70 -104z" fill="#fff"/>
+    <path d="M400 222q70 0 70 0q4 92 -70 102z" fill="url(#hatchk)" opacity=".6"/>
+    <circle cx="372" cy="250" r="12" fill="#000"/><circle cx="432" cy="250" r="12" fill="#000"/><circle cx="375" cy="247" r="4" fill="#fff"/><circle cx="435" cy="247" r="4" fill="#fff"/>
+    <path d="M356 282q44 34 92 0q-6 30 -46 30q-40 0 -46 -30z" fill="#000"/><rect x="388" y="286" width="12" height="14" fill="#fff"/><rect x="402" y="286" width="12" height="14" fill="#fff"/>
+    <path d="M322 224q-24 16 -18 46q14 -4 22 -22zM478 224q24 16 18 46q-14 -4 -22 -22z" fill="#fff"/>
+    <ellipse cx="400" cy="214" rx="170" ry="26" fill="#000" stroke="#fff" stroke-width="4"/>
+    <path d="M300 208L280 30Q400 0 520 30L500 208Q400 228 300 208z" fill="#000" stroke="#fff" stroke-width="4"/>
+    <path d="M294 150Q400 174 506 150L502 196Q400 216 298 196z" fill="#fff"/>
+    <g transform="rotate(-10 450 120)"><rect x="410" y="70" width="84" height="96" fill="#fff" stroke="#000" stroke-width="4"/><text x="452" y="100" ${F} font-size="13" text-anchor="middle" fill="#000">In this style</text><text x="452" y="146" ${F} font-size="38" text-anchor="middle" fill="${RED}">10/6</text></g>
+    ${cup(160, 330, 2.4)}${cup(650, 340, 2)}
+    `, '0 0 800 420');
+  }
+
+  window.Art = { c2s1, c2s2, c2s3, c2s4, splash2, park, hatter, scene1, scene2, scene3, scene4, batman, splash, basement, capture, gordon, clock, RED };
 })();

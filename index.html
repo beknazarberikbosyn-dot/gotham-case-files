@@ -40,16 +40,13 @@
     </header>
     <div id="files" class="files" hidden>
       <p class="px-prompt">ВЫБЕРИ ДЕЛО, РОБИН</p>
-      <div class="stack">
-        <div class="folder locked l2"><span class="tab">ДЕЛО №3</span><b>ЗАСЕКРЕЧЕНО</b><i>скоро</i></div>
-        <div class="folder locked l1"><span class="tab">ДЕЛО №2</span><b>ЗАСЕКРЕЧЕНО</b><i>скоро</i></div>
-        <button class="folder open" id="case1Btn">
-          <span class="tab">ДЕЛО №1</span>
-          <b>МЁРТВЫЕ ДАТЫ</b>
-          <i>3 тела · на лбу у каждого — дата</i>
-          <em id="bestBadge"></em>
-        </button>
-      </div>
+      <div class="stack" id="stack"></div>
+    </div>
+    <div id="diff" class="diff" hidden>
+      <p class="px-line" id="diffCase"></p>
+      <p class="px-prompt">ВЫБЕРИ СЛОЖНОСТЬ</p>
+      <div class="diff-list" id="diffList"></div>
+      <button class="px-btn dim" id="diffBack">← К ДЕЛАМ</button>
     </div>
   </div>
 </section>
@@ -57,8 +54,9 @@
 <!-- ============ ДЕЛО (комикс) ============ -->
 <section id="case" class="screen">
   <header class="hud">
-    <div class="hud-title"><span>ДЕЛО №1</span> МЁРТВЫЕ ДАТЫ</div>
+    <div class="hud-title"><span id="hudNo">ДЕЛО</span> <b id="hudName"></b></div>
     <div class="hud-stats">
+      <div class="stat">СЛОЖНОСТЬ <b id="hudDiff"></b></div>
       <div class="stat">МЕСТО <b id="hudPlace">1/4</b></div>
       <div class="stat">УЛИКИ <b id="hudClues">0/4</b></div>
       <div class="stat">ПОДСКАЗКИ <b id="hudHints">0</b></div>
@@ -137,6 +135,7 @@
 <script src="js/pixel.js"></script>
 <script src="js/art.js"></script>
 <script src="js/case1.js"></script>
+<script src="js/case2.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>
