@@ -824,5 +824,5 @@
     `, '0 0 800 420');
   }
 
-  window.Art = { body, wallClock, marker, svg, calHead, gordonFig, hatterFig, c2s1, c2s2, c2s3, c2s4, splash2, park, hatter, scene1, scene2, scene3, scene4, batman, splash, basement, capture, gordon, clock, RED };
+  window.Art = { rainLines, rng, range, taper, batShadow, cup, body, wallClock, marker, svg, calHead, gordonFig, hatterFig, c2s1, c2s2, c2s3, c2s4, splash2, park, hatter, scene1, scene2, scene3, scene4, batman, splash, basement, capture, gordon, clock, RED };
 })();

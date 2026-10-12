@@ -6,7 +6,7 @@
   const vol = { music: 0.6, sfx: 0.7 };
 
   const NOTE = n => 440 * Math.pow(2, (n - 69) / 12); // MIDI → Гц
-  const N = { C2: 36, D2: 38, E2: 40, F2: 41, G2: 43, A2: 45, Bb2: 46, C3: 48, D3: 50, E3: 52, F3: 53, G3: 55, A3: 57, Bb3: 58, Cs4: 61, C4: 60, D4: 62, E4: 64, F4: 65, G4: 67, Gs4: 68, A4: 69, Bb4: 70, B4: 71, C5: 72, Cs5: 73, D5: 74, E5: 76, F5: 77, Fs5: 78, G5: 79, Gs5: 80, A5: 81, B5: 83, D6: 86 };
+  const N = { C2: 36, D2: 38, E2: 40, F2: 41, G2: 43, A2: 45, Bb2: 46, C3: 48, D3: 50, E3: 52, F3: 53, G3: 55, A3: 57, Bb3: 58, Cs4: 61, C4: 60, D4: 62, E4: 64, F4: 65, G4: 67, Gs4: 68, A4: 69, Bb4: 70, B4: 71, C5: 72, Cs5: 73, D5: 74, E5: 76, F5: 77, Fs5: 78, G5: 79, Gs5: 80, A5: 81, B5: 83, D6: 86, B3: 59, B2: 47, Ds4: 63, Fs4: 66 };
 
   function init() {
     if (ctx) return true;
@@ -92,6 +92,15 @@
     const g = ctx.createGain(); env(g, t, 0.005, level || 0.03, 0, Math.max(0.02, dur - 0.04), 0.06);
     o.connect(f); f.connect(g); out(g, 0.25); o.start(t); o.stop(t + dur + 0.15);
   }
+  // «голос»: треугольник с вибрато через форманту — оперная ария Пыга
+  function voice(n, t, dur, level) {
+    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = NOTE(n);
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 5.4;
+    const lg = ctx.createGain(); lg.gain.value = NOTE(n) * 0.012; lfo.connect(lg); lg.connect(o.frequency);
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1100; f.Q.value = 1.1;
+    const g = ctx.createGain(); env(g, t, 0.22, level || 0.1, 0, Math.max(0.1, dur - 0.3), 0.5);
+    o.connect(f); f.connect(g); out(g, 0.75); o.start(t); lfo.start(t); o.stop(t + dur + 0.9); lfo.stop(t + dur + 0.9);
+  }
   function kick(t, level) {
     const o = ctx.createOscillator(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.18);
     const g = ctx.createGain(); env(g, t, 0.003, level || 0.35, 0.28); o.connect(g); out(g); o.start(t); o.stop(t + 0.35);
@@ -154,6 +163,26 @@
         if (!this._m || i % this.len === 0) { this._m = []; let p = 0; this.mel.forEach(([n, d]) => { this._m[p] = n; p += d; }); }
         const n = this._m[i % this.len];
         if (n) celesta(n + (Math.floor(i / this.len) % 2 && Math.random() < 0.15 ? -1 : 0), t, 0.085);
+      }
+    },
+    // два мотива: скрежет ножа Зсасза и ария Пыга, по очереди
+    duo: {
+      bpm: 72, div: 2, len: 64, rain: 0.05, storm: true,
+      mel: [[N.B4, 2], [N.C5, 1], [N.B4, 1], [N.A4, 2], [N.Gs4, 2], [N.A4, 1], [N.B4, 1], [N.C5, 1], [N.D5, 1], [N.E5, 4], [N.D5, 2], [N.C5, 1], [N.B4, 1], [N.A4, 2], [N.B4, 2], [N.Gs4, 2], [N.E4, 6]],
+      play(i, t, s) {
+        const bar = Math.floor(i / 8) % 4, k = i % 8, part = Math.floor(i / 32) % 2;
+        const chords = [[N.E3, N.G3, N.B3], [N.C3, N.E3, N.G3], [N.A2, N.C4 - 12, N.E3], [N.B2, N.Ds4 - 12, N.Fs4 - 12]];
+        if (k === 0) pad(chords[bar], t, s * 8, 0.024);
+        if (part === 0) {
+          bass(chords[bar][0] - 12, t, s * 0.8, k % 3 === 0 ? 0.17 : 0.08);
+          if (k % 4 === 2) { const h = noiseHit(t, 0.09, 2600, 0.035, 'bandpass'); out(h.g, 0.3); h.s.start(t); }
+          if (k === 7 && bar % 2) square(N.Fs5 + 12, t, s * 0.3, 0.008, 4000);
+        } else {
+          if (k % 4 === 0) bass(chords[bar][0] - 12, t, s * 3.6, 0.1);
+          if (!this._m) { this._m = []; let p = 0; this.mel.forEach(([n, d]) => { this._m[p] = [n, d]; p += d; }); }
+          const m = this._m[i % 32];
+          if (m) voice(m[0], t, m[1] * s, 0.11);
+        }
       }
     },
     // победа: бодрая восьмибитная фанфара

@@ -1,7 +1,7 @@
 /* Движок: заставка → выбор дела и сложности → расследование → финал → пещера с очками. */
 (function () {
   const $ = id => document.getElementById(id);
-  const CASES = [window.CASE1, window.CASE2].filter(Boolean);
+  const CASES = [window.CASE1, window.CASE2, window.CASE3].filter(Boolean);
   const DIFFS = {
     easy: { name: 'ЛЁГКАЯ', note: 'Справочник под рукой, часть ответов — на выбор' },
     medium: { name: 'СРЕДНЯЯ', note: 'Справочник под рукой, отвечаешь сам' },
@@ -96,12 +96,18 @@
 
   /* ---------- сцена ---------- */
   const sceneDone = i => C.scenes[i].clues.every(c => st.solved[c.id]);
-  const allDone = () => C.scenes.every((_, i) => sceneDone(i));
+  const scenesDone = () => C.scenes.every((_, i) => sceneDone(i));
+  const allDone = () => scenesDone() && (!C.archive || !!st.solved.archive);
+  const allTraces = () => C.scenes.flatMap(sc => sc.clues.filter(c => c.type === 'trace'));
+  const ALL_COUNT = () => C.scenes.reduce((n, sc) => n + sc.clues.length, 0) + (C.archive ? 1 : 0);
+  // загадка архива — «виртуальная» улика без места на сцене
+  const archiveClue = () => ({ id: 'archive', name: C.archive.name, type: 'archive', q: C.archive.q, hints: C.archive.hints, done: C.archive.done, checkLabel: 'ОТПРАВИТЬ В БЭТ-КОМПЬЮТЕР', exhibit: () => `<p class="note">Нажми на след слева, потом на досье беглеца, к которому он подходит, — запись появится в досье и в блокноте. Нажми на запись в досье, чтобы её стереть. Когда все следы будут записаны, отправь архив на проверку: бэт-компьютер скажет только, сколько записей верны.</p>` });
+  const openArchive = () => openClue(archiveClue());
   const shortName = sc => sc.loc.split(' · ')[1] || sc.loc;
 
   function hud() {
     const solved = Object.keys(st.solved).length;
-    $('hudClues').textContent = solved + '/' + TOTAL;
+    $('hudClues').textContent = solved + '/' + ALL_COUNT();
     $('hudHints').textContent = st.hintsUsed;
     $('hudDiff').textContent = DIFFS[diff].name;
     renderPlaces();
@@ -120,16 +126,24 @@
       if (i === st.scene) b.setAttribute('aria-current', 'true');
       box.appendChild(b);
     });
+    if (C.archive) {
+      const tr = allTraces(), got = tr.filter(t => st.solved[t.id]).length, ok = !!st.solved.archive;
+      const a = btn('place arch' + (ok ? ' done' : ''), '', openArchive);
+      a.innerHTML = `<b>А</b><span>АРХИВ АРКХЕМА</span><i>${ok ? '✓' : got + '/' + tr.length}</i>`;
+      a.setAttribute('aria-label', `Архив Аркхема: следов найдено ${got} из ${tr.length}`);
+      box.appendChild(a);
+    }
     const fin = allDone();
     const f = btn('place final' + (fin ? ' open' : ''), '', () => { if (fin) toFinale(); });
     f.innerHTML = `<b>★</b><span>${fin ? 'ЛОГОВО' : 'ЛОГОВО'}</span><i>${fin ? 'открыто' : '🔒'}</i>`;
     f.disabled = !fin;
-    f.title = fin ? 'Все улики собраны' : 'Откроется, когда соберёшь все улики во всех местах';
+    f.title = fin ? 'Все улики собраны' : (C.archive ? 'Откроется, когда соберёшь все улики и проверишь архив' : 'Откроется, когда соберёшь все улики во всех местах');
     box.appendChild(f);
   }
 
   function nextTarget() {
     if (allDone()) return { label: 'К ЛОГОВУ →', fn: toFinale };
+    if (scenesDone() && C.archive) return { label: 'В АРХИВ →', fn: openArchive };
     const n = C.scenes.length;
     for (let k = 1; k <= n; k++) { const i = (st.scene + k) % n; if (!sceneDone(i)) return { label: `МЕСТО ${i + 1} →`, fn: () => goScene(i) }; }
     return null;
@@ -167,12 +181,21 @@
       h.textContent = sc.loc.split(' · ').slice(0, 2).join(' · ');
       ol.appendChild(h);
       got.forEach(c => {
-        const li = el('li', st.helped[c.id] ? 'helped' : '');
+        const li = el('li', (st.helped[c.id] ? 'helped' : '') + (c.type === 'trace' ? ' trace' : ''));
         li.innerHTML = `<b>${c.name}</b>`;
         li.appendChild(document.createTextNode(c.done));
         ol.appendChild(li);
       });
     });
+    if (C.archive && st.links && Object.keys(st.links).length) {
+      const h = el('li', 'place'); h.textContent = 'АРХИВ АРКХЕМА · ЗАПИСИ'; ol.appendChild(h);
+      allTraces().filter(t => st.links[t.id]).forEach(t => {
+        const f = C.archive.fugitives.find(x => x.id === st.links[t.id]);
+        const li = el('li', 'link'); li.innerHTML = `<b>${t.name}</b>`; li.appendChild(document.createTextNode('Возможно: ' + f.name + (f.alias ? ' («' + f.alias + '»)' : '') + '.'));
+        ol.appendChild(li);
+      });
+      if (st.solved.archive) { const li = el('li'); li.innerHTML = '<b>Архив проверен</b>'; li.appendChild(document.createTextNode(C.archive.done)); ol.appendChild(li); }
+    }
     $('notesEmpty').hidden = !!ol.children.length;
   }
 
@@ -182,7 +205,7 @@
     $('loc').textContent = sc.loc;
     type($('narr'), sc.narr, 12);
     $('scene').innerHTML = Art[sc.art]() + sc.clues.map(c =>
-      `<button class="hot${st.solved[c.id] ? ' solved' : ''}" data-id="${c.id}" aria-label="${c.name}" style="left:${c.hot.x}%;top:${c.hot.y}%;width:${c.hot.w}%;height:${c.hot.h}%"><span class="hot-label">${c.name}</span></button>`).join('');
+      `<button class="hot${st.solved[c.id] ? ' solved' : ''}${c.type === 'trace' ? ' trace' : ''}" data-id="${c.id}" aria-label="${c.type === 'trace' ? 'След: ' : ''}${c.name}" style="left:${c.hot.x}%;top:${c.hot.y}%;width:${c.hot.w}%;height:${c.hot.h}%"><span class="hot-label">${c.name}</span></button>`).join('');
     $('scene').querySelectorAll('.hot').forEach(b => b.onclick = () => openClue(sc.clues.find(c => c.id === b.dataset.id)));
     $('case').scrollTop = 0;
     hud();
@@ -483,12 +506,12 @@
     /* --- поле с клетками --- */
     grid(v, A) {
       let sel = null;
-      const g = el('div', 'grid' + (v.chess ? ' chess' : ''));
+      const g = el('div', 'grid' + (v.chess ? ' chess' : '') + (v.plain ? ' plan' : ''));
       g.style.gridTemplateColumns = `${v.labels ? 'auto ' : ''}repeat(${v.rows[0].length}, 1fr)`;
       v.rows.forEach((row, r) => {
         if (v.labels) g.appendChild(el('span', 'grid-l', v.labels.rows[r]));
         row.forEach((cell, c) => {
-          const b = btn('cell' + ((r + c) % 2 ? ' dark' : ''), cell || '', () => { g.querySelectorAll('.cell').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); sel = [r, c]; sfx('click'); });
+          const b = btn('cell' + (!v.plain && (r + c) % 2 ? ' dark' : '') + (v.plain ? ' plain' : ''), cell || '', () => { g.querySelectorAll('.cell').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); sel = [r, c]; sfx('click'); });
           b.setAttribute('aria-label', v.labels ? v.labels.cols[c] + v.labels.rows[r] + (cell ? ' ' + cell : ' пусто') : `ряд ${r + 1}, место ${c + 1}`);
           if (v.black && v.black.includes(cell)) b.classList.add('bk');
           g.appendChild(b);
@@ -585,6 +608,142 @@
     }
   };
 
+  Object.assign(TYPES, {
+    /* --- найди отличия --- */
+    spot(v, A, ctx) {
+      const found = new Set();
+      const box = el('div', 'spot', `<figure><figcaption>ДО</figcaption>${v.refArt()}</figure><figure class="after"><figcaption>ПОСЛЕ — нажимай здесь</figcaption>${v.imgArt()}</figure>`);
+      const cnt = el('p', 'spot-count');
+      A.append(box, cnt);
+      const svgEl = box.querySelector('.after svg');
+      const NS = 'http://www.w3.org/2000/svg';
+      const upd = () => { cnt.textContent = `Найдено: ${found.size} из ${v.diffs.length}`; };
+      upd();
+      svgEl.style.cursor = 'crosshair';
+      svgEl.addEventListener('click', e => {
+        const pt = svgEl.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+        const p = pt.matrixTransform(svgEl.getScreenCTM().inverse());
+        const i = v.diffs.findIndex((d, k) => !found.has(k) && Math.hypot(d.x - p.x, d.y - p.y) <= d.r + 6);
+        if (i >= 0) {
+          found.add(i); sfx('tick');
+          const d = v.diffs[i], c = document.createElementNS(NS, 'circle');
+          c.setAttribute('cx', d.x); c.setAttribute('cy', d.y); c.setAttribute('r', d.r); c.setAttribute('class', 'spot-ring');
+          svgEl.appendChild(c); upd();
+          if (found.size === v.diffs.length) setTimeout(() => ctx.solve(), 450);
+        } else {
+          const x = document.createElementNS(NS, 'path');
+          x.setAttribute('d', `M${p.x - 7} ${p.y - 7}l14 14m0 -14l-14 14`); x.setAttribute('class', 'spot-miss');
+          svgEl.appendChild(x); setTimeout(() => x.remove(), 700);
+        }
+      });
+      return { noCheck: true, empty: () => true, check: () => found.size === v.diffs.length };
+    },
+    /* --- сравнить отпечаток --- */
+    print(v, A) {
+      let rot = 0, sel = null;
+      const ref = v.refs.find(r => r.id === v.answer);
+      const ang = () => ((v.start + rot) % 12) * 30;
+      const fragSvg = () => `<svg viewBox="-40 -40 80 80"><defs><clipPath id="fragc"><circle r="36"/></clipPath></defs><circle r="38" fill="#ece5d3"/><g clip-path="url(#fragc)"><g transform="rotate(${ang()}) translate(-10 6)">${Art.fingerprint(ref.kind, ref.seed, '#111')}</g></g><circle r="37" fill="none" stroke="#000" stroke-width="2"/></svg>`;
+      const wrap = el('div', 'print');
+      const left = el('div', 'print-frag');
+      const cards = el('div', 'print-cards');
+      const cmp = el('div', 'print-cmp');
+      const draw = () => {
+        left.querySelector('.fr').innerHTML = fragSvg();
+        cards.querySelectorAll('.pcard').forEach(c => c.classList.toggle('sel', c.dataset.id === sel));
+        if (!sel) { cmp.innerHTML = '<span class="dim">Выбери карточку, чтобы наложить на неё фрагмент.</span>'; return; }
+        const r = v.refs.find(x => x.id === sel);
+        cmp.innerHTML = `<svg viewBox="-70 -70 140 140"><rect x="-70" y="-70" width="140" height="140" fill="#ece5d3"/>${Art.fingerprint(r.kind, r.seed, '#222')}
+          <g transform="translate(10 -6)"><circle r="36" fill="rgba(208,20,44,.08)" stroke="#d0142c" stroke-width="1.5" stroke-dasharray="4 3"/><g clip-path="url(#fragc)"><g opacity=".75" transform="rotate(${ang()}) translate(-10 6)">${Art.fingerprint(ref.kind, ref.seed, '#d0142c')}</g></g></g></svg>`;
+      };
+      left.innerHTML = '<div class="fr"></div><div class="order-h">ФРАГМЕНТ С НОЖА</div>';
+      const row = el('div', 'mech-row');
+      const l = btn('btn ghost', '↺'), r = btn('btn ghost', '↻');
+      l.setAttribute('aria-label', 'Повернуть фрагмент влево'); r.setAttribute('aria-label', 'Повернуть фрагмент вправо');
+      row.append(l, r); left.appendChild(row);
+      hold(l, () => { rot = (rot + 11) % 12; sfx('tick'); draw(); });
+      hold(r, () => { rot = (rot + 1) % 12; sfx('tick'); draw(); });
+      v.refs.forEach(rf => {
+        const c = btn('pcard', '', () => { sel = rf.id; sfx('click'); draw(); });
+        c.dataset.id = rf.id;
+        c.innerHTML = `<svg viewBox="-70 -70 140 140"><rect x="-70" y="-70" width="140" height="140" fill="#ece5d3"/>${Art.fingerprint(rf.kind, rf.seed, '#222')}</svg><span>${rf.label}</span>`;
+        cards.appendChild(c);
+      });
+      wrap.append(left, cards);
+      A.append(wrap, el('div', 'order-h', 'НАЛОЖЕНИЕ'), cmp);
+      draw();
+      return { empty: () => !sel, emptyMsg: 'Сначала выбери карточку.', check: () => sel === v.answer && (v.start + rot) % 12 === 0 ? true : (sel === v.answer ? 'Карточка та. Но линии не легли — поверни фрагмент точнее.' : false) };
+    },
+    /* --- разложить по двум коробкам --- */
+    sort(v, A) {
+      const where = {};
+      let pick = null;
+      const bins = el('div', 'bins'), tray = el('div', 'tray');
+      const render = () => {
+        bins.innerHTML = '';
+        v.bins.forEach(b => {
+          const box = el('div', 'bin');
+          const head = btn('bin-h', b.label, () => { if (pick) { where[pick] = b.id; pick = null; sfx('click'); render(); } });
+          box.appendChild(head);
+          v.items.filter(i => where[i.id] === b.id).forEach(i => box.appendChild(btn('chip in', i.label, () => { delete where[i.id]; render(); })));
+          box.onclick = e => { if (e.target === box && pick) { where[pick] = b.id; pick = null; sfx('click'); render(); } };
+          bins.appendChild(box);
+        });
+        tray.replaceChildren(...v.items.filter(i => !where[i.id]).map(i => btn('chip' + (pick === i.id ? ' sel' : ''), i.label, () => { pick = pick === i.id ? null : i.id; sfx('click'); render(); })));
+        if (!tray.children.length) tray.appendChild(el('span', 'dim', 'Всё разложено. Нажми на вещь в коробке, чтобы вернуть её.'));
+      };
+      A.append(el('div', 'order-h', 'ВЕЩИ: НАЖМИ НА ВЕЩЬ, ПОТОМ НА ЗАГОЛОВОК КОРОБКИ'), tray, bins);
+      render();
+      return { empty: () => !Object.keys(where).length, check: () => v.items.every(i => where[i.id] === i.bin) };
+    },
+    /* --- архив беглецов --- */
+    archive(v, A) {
+      const AR = C.archive, traces = allTraces();
+      let pick = null;
+      const wrap = el('div', 'arch');
+      const render = () => {
+        const found = traces.filter(t => st.solved[t.id]);
+        wrap.innerHTML = '';
+        const left = el('div', 'arch-traces');
+        left.appendChild(el('div', 'order-h', `СЛЕДЫ: НАЙДЕНО ${found.length} ИЗ ${traces.length}`));
+        if (!found.length) left.appendChild(el('p', 'dim', 'Пока ни одного. Следы — это предметы на местах преступлений без загадки: их достаточно осмотреть.'));
+        found.forEach(t => {
+          const f = AR.fugitives.find(x => x.id === st.links[t.id]);
+          const b = btn('tchip' + (pick === t.id ? ' sel' : '') + (f ? ' linked' : ''), '', () => { pick = pick === t.id ? null : t.id; sfx('click'); render(); });
+          b.innerHTML = `<b>${t.name}</b><span>${t.done}</span>${f ? `<em>→ ${f.name}</em>` : ''}`;
+          left.appendChild(b);
+        });
+        const grid = el('div', 'arch-dossiers');
+        AR.fugitives.forEach(f => {
+          const linked = found.filter(t => st.links[t.id] === f.id);
+          const card = el('div', 'dossier' + (pick ? ' target' : ''));
+          card.innerHTML = `<div class="mug">${Art.mug(f.id)}</div><div class="dos-body"><b>${f.name}</b>${f.alias ? `<i>«${f.alias}»</i>` : ''}
+            <table><tr><td>Рост</td><td>${f.h} см</td><td>Вес</td><td>${f.w} кг</td></tr><tr><td>Обувь</td><td>${f.shoe}</td><td>Кровь</td><td>${f.blood}</td></tr><tr><td>Волосы</td><td colspan="3">${f.hair}</td></tr><tr><td>Рука</td><td colspan="3">${f.hand}</td></tr></table>
+            <p>${f.habit}</p></div>`;
+          const notes = el('div', 'dos-notes');
+          linked.forEach(t => notes.appendChild(btn('note-chip', '✎ ' + t.name + ' ×', e => { e.stopPropagation(); delete st.links[t.id]; sfx('scrape'); renderNotes(); render(); })));
+          card.appendChild(notes);
+          card.addEventListener('click', () => { if (!pick) return; st.links[pick] = f.id; pick = null; sfx('click'); renderNotes(); render(); });
+          grid.appendChild(card);
+        });
+        wrap.append(left, grid);
+      };
+      A.appendChild(wrap);
+      render();
+      return {
+        empty: () => false,
+        check() {
+          const found = traces.filter(t => st.solved[t.id]);
+          if (found.length < traces.length) return `Рано. Найдено следов: ${found.length} из ${traces.length}. Осмотри все места.`;
+          const miss = traces.filter(t => !st.links[t.id]).length;
+          if (miss) return `Не все следы записаны: осталось ${miss}.`;
+          const ok = traces.filter(t => st.links[t.id] === t.owner).length;
+          return ok === traces.length ? true : `Бэт-компьютер: совпало ${ok} из ${traces.length}. Где-то ошибка.`;
+        }
+      };
+    }
+  });
+
   function options(v, A, many) {
     const sel = new Set();
     const box = el('div', 'opts');
@@ -624,6 +783,15 @@
     $('mFeedback').textContent = '';
     const A = $('mAnswer');
     A.innerHTML = '';
+    if (v.type === 'trace') {
+      $('mQuestion').textContent = '';
+      $('mConclusion').hidden = true;
+      $('mCheck').hidden = true; $('mHint').hidden = true;
+      $('modal').hidden = false; document.body.classList.add('modal-open');
+      A.innerHTML = `<p class="trace-ok">${solved ? 'След уже в архиве.' : 'След добавлен в архив Аркхема.'} Открой архив на карте дела, чтобы записать, на кого он указывает.</p>`;
+      if (!solved) { st.solved[clue.id] = true; const h = document.querySelector(`.hot[data-id="${clue.id}"]`); if (h) h.classList.add('solved'); renderNotes(); sfx('page'); hud(); }
+      return;
+    }
     if (!solved) current.api = TYPES[v.type](v, A, { solve: () => solve() });
     $('mConclusion').hidden = !solved;
     $('mConclusion').textContent = clue.done;
@@ -670,7 +838,8 @@
     $('mConclusion').hidden = false;
     $('mCheck').hidden = true; $('mHint').hidden = true;
     batHide();
-    document.querySelector(`.hot[data-id="${clue.id}"]`).classList.add('solved');
+    const hotEl = document.querySelector(`.hot[data-id="${clue.id}"]`);
+    if (hotEl) hotEl.classList.add('solved');
     renderNotes();
     sfx('ok');
     hud();
@@ -737,8 +906,8 @@
 
   /* ---------- запуск ---------- */
   function startCase() {
-    st = { scene: 0, solved: {}, helped: {}, hintLevel: {}, hintsUsed: 0, announced: {}, diffs: { [diff]: true } };
-    TOTAL = C.scenes.reduce((n, s) => n + s.clues.length, 0);
+    st = { scene: 0, solved: {}, helped: {}, hintLevel: {}, hintsUsed: 0, announced: {}, diffs: { [diff]: true }, links: {} };
+    TOTAL = C.scenes.reduce((n, s) => n + s.clues.filter(c => c.type !== 'trace').length, 0) + (C.archive ? 1 : 0);
     $('hudNo').textContent = 'ДЕЛО №' + C.no;
     $('hudName').textContent = C.title;
     $('notes').innerHTML = '';
