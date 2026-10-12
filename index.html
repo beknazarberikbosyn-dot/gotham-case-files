@@ -24,6 +24,18 @@
     <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
       <rect width="2.2" height="7" fill="#fff"/>
     </pattern>
+    <!-- меловой контур вокруг силуэта: кольцо из расширенной альфы + шероховатость -->
+    <filter id="chalk" x="-20%" y="-30%" width="140%" height="160%">
+      <feMorphology in="SourceAlpha" operator="dilate" radius="10" result="o"/>
+      <feMorphology in="SourceAlpha" operator="dilate" radius="7.5" result="i"/>
+      <feComposite in="o" in2="i" operator="out" result="ring"/>
+      <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3" result="n"/>
+      <feDisplacementMap in="ring" in2="n" scale="4" result="rough"/>
+      <feComposite in="rough" in2="n" operator="in" result="grain"/>
+      <feFlood flood-color="#fff"/>
+      <feComposite in2="rough" operator="in" result="w"/>
+      <feMerge><feMergeNode in="w"/></feMerge>
+    </filter>
     <pattern id="hatchk" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
       <rect width="2.4" height="6" fill="#000"/>
     </pattern>
@@ -57,12 +69,12 @@
     <div class="hud-title"><span id="hudNo">ДЕЛО</span> <b id="hudName"></b></div>
     <div class="hud-stats">
       <div class="stat">СЛОЖНОСТЬ <b id="hudDiff"></b></div>
-      <div class="stat">МЕСТО <b id="hudPlace">1/4</b></div>
-      <div class="stat">УЛИКИ <b id="hudClues">0/4</b></div>
+      <div class="stat">УЛИКИ <b id="hudClues">0/16</b></div>
       <div class="stat">ПОДСКАЗКИ <b id="hudHints">0</b></div>
       <button id="detBtn" class="det-btn" aria-pressed="false">◉ РЕЖИМ ДЕТЕКТИВА</button>
     </div>
   </header>
+  <nav class="places" id="places" aria-label="Карта дела: места преступления"></nav>
 
   <main class="stage">
     <section class="panel-wrap">
@@ -132,6 +144,16 @@
 
 <canvas id="wipe" class="wipe" width="32" height="18"></canvas>
 
+<!-- настройки -->
+<button class="set-btn" id="setBtn" aria-label="Настройки" title="Настройки">⚙</button>
+<div class="settings" id="settings" hidden>
+  <div class="set-card" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <header><h2 id="setTitle">НАСТРОЙКИ</h2><button class="x" id="setClose" aria-label="Закрыть">×</button></header>
+    <div class="set-body" id="setBody"></div>
+  </div>
+</div>
+
+<script src="js/audio.js"></script>
 <script src="js/pixel.js"></script>
 <script src="js/art.js"></script>
 <script src="js/case1.js"></script>

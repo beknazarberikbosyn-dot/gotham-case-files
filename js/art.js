@@ -17,52 +17,203 @@
     <line x1="${cx}" y1="${cy}" x2="${(cx + Math.cos(ma * rad) * r * 0.8).toFixed(1)}" y2="${(cy + Math.sin(ma * rad) * r * 0.8).toFixed(1)}" stroke="#fff" stroke-width="2"/></g>`;
   };
 
-  // лежащее тело: силуэт, голова слева
-  const body = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s || 1})" stroke="#fff" stroke-width="3" stroke-linejoin="round" fill="#000">
-    <path d="M150 -18 l118 6 l-2 20 l-116 8z"/>
-    <path d="M262 -14 l26 -14 l8 10 l-22 20z"/>
-    <path d="M22 -14 q62 -22 130 -6 l8 42 q-74 14 -138 2z"/>
-    <path d="M96 28 q84 30 170 22 l2 12 q-96 12 -180 -16z"/>
-    <circle cx="0" cy="0" r="23"/>
-    <rect x="-12" y="-13" width="20" height="7" fill="${RED}" stroke="none"/>
+  /* ---------- детали ---------- */
+  const F0 = 'font-family="Russo One, Arial Black, sans-serif"';
+  // конечность с белым контуром (комиксная обводка)
+  const limb = (d, w) => `<path d="${d}" fill="none" stroke="#fff" stroke-width="${w + 6}" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#000" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  // кисть: ладонь и пальцы
+  const hand = (x, y, rot, open) => `<g transform="translate(${x} ${y}) rotate(${rot})">
+    ${open ? [-6, -2, 2, 6].map((f, k) => `<path d="M6 ${f * 0.9}l${10 - Math.abs(k - 1.5) * 2} ${f * 0.5}" stroke="#000" stroke-width="5.5" stroke-linecap="round"/><path d="M6 ${f * 0.9}l${10 - Math.abs(k - 1.5) * 2} ${f * 0.5}" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>`).join('') : ''}
+    <ellipse cx="2" cy="0" rx="9" ry="7.5" fill="#fff" stroke="#000" stroke-width="1.6"/>
+    ${open ? '<path d="M-2 -7q6 -8 10 -10" stroke="#000" stroke-width="5.5" stroke-linecap="round"/><path d="M-2 -7q6 -8 10 -10" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>' : '<path d="M5 -5v10M8 -4v8" stroke="#000" stroke-width="1.2"/>'}</g>`;
+
+  // плавная «трубка» переменной толщины по контрольным точкам (Catmull-Rom)
+  function taper(pts, ws) {
+    const P = [], W = [];
+    const cr = (p0, p1, p2, p3, t) => { const t2 = t * t, t3 = t2 * t; return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3); };
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[Math.max(0, i - 1)], b = pts[i], c = pts[i + 1], d = pts[Math.min(pts.length - 1, i + 2)];
+      for (let k = 0; k < 8; k++) { const t = k / 8; P.push([cr(a[0], b[0], c[0], d[0], t), cr(a[1], b[1], c[1], d[1], t)]); W.push(ws[i] + (ws[i + 1] - ws[i]) * t); }
+    }
+    P.push(pts[pts.length - 1]); W.push(ws[ws.length - 1]);
+    const L = [], R = [];
+    P.forEach((p, i) => {
+      const q = P[Math.min(P.length - 1, i + 1)], o = P[Math.max(0, i - 1)];
+      let dx = q[0] - o[0], dy = q[1] - o[1]; const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
+      L.push([p[0] - dy * W[i] / 2, p[1] + dx * W[i] / 2]); R.push([p[0] + dy * W[i] / 2, p[1] - dx * W[i] / 2]);
+    });
+    const f = v => v[0].toFixed(1) + ' ' + v[1].toFixed(1);
+    const e = P[P.length - 1], s0 = P[0];
+    return `M${f(L[0])} ${L.map(v => 'L' + f(v)).join(' ')} Q${f([e[0] + (e[0] - P[P.length - 2][0]) * 1.6, e[1] + (e[1] - P[P.length - 2][1]) * 1.6])} ${f(R[R.length - 1])} ${R.slice().reverse().map(v => 'L' + f(v)).join(' ')} Q${f([s0[0] - (P[1][0] - s0[0]) * 1.6, s0[1] - (P[1][1] - s0[1]) * 1.6])} ${f(L[0])}Z`;
+  }
+
+  // лежащее тело (вид сверху, лицом вверх, голова слева). o: {date, look: 'watch'|'printer', card}
+  function body(x, y, s, o) {
+    o = o || {};
+    const printer = o.look === 'printer';
+    const legR = taper([[132, -18], [172, -24], [212, -26], [250, -24], [282, -22]], [36, 31, 25, 22, 20]);
+    const legL = taper([[132, 18], [166, 36], [198, 52], [234, 50], [266, 46]], [36, 31, 25, 22, 20]);
+    const armU = taper([[42, -34], [24, -54], [6, -66], [-18, -70], [-40, -70]], [22, 19, 17, 15, 13]);
+    const armD = taper([[42, 36], [68, 52], [96, 62], [122, 68], [144, 70]], [22, 19, 17, 15, 13]);
+    const sleeveEnd = printer ? 0.55 : 1;
+    const torso = 'M34 -38 Q40 -48 58 -46 Q92 -42 126 -36 Q140 -34 146 -22 Q150 0 146 22 Q140 34 126 36 Q92 42 58 46 Q40 48 34 38 Q26 0 34 -38Z';
+    const shoe = (cx, cy, r) => `<g transform="rotate(${r} ${cx} ${cy})"><path d="M${cx - 8} ${cy - 11} Q${cx + 16} ${cy - 13} ${cx + 16} ${cy} Q${cx + 16} ${cy + 13} ${cx - 8} ${cy + 11} Q${cx - 13} ${cy} ${cx - 8} ${cy - 11}Z" fill="#000" stroke="#fff" stroke-width="2.6"/>
+      <path d="M${cx + 4} ${cy - 10} Q${cx + 12} ${cy} ${cx + 4} ${cy + 10}" fill="none" stroke="#fff" stroke-width="1.4" opacity=".7"/><path d="M${cx - 5} ${cy - 4}l5 2M${cx - 5} ${cy}h6M${cx - 5} ${cy + 4}l5 -2" stroke="#fff" stroke-width="1.2"/><path d="M${cx + 13} ${cy - 6}q3 6 0 12" stroke="#fff" stroke-width="2.4" fill="none"/></g>`;
+    const sil = `<path d="${legR}"/><path d="${legL}"/><path d="${armU}"/><path d="${armD}"/><path d="${torso}"/> <ellipse cx="0" cy="0" rx="26" ry="23"/><rect x="18" y="-9" width="18" height="18"/>
+      <ellipse cx="290" cy="-22" rx="16" ry="12"/><ellipse cx="274" cy="48" rx="16" ry="12"/><ellipse cx="-50" cy="-70" rx="12" ry="10"/><ellipse cx="154" cy="70" rx="12" ry="10"/>`;
+    const ink = 'fill="#000" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"';
+    return `<g transform="translate(${x} ${y}) scale(${s || 1})">
+    <g filter="url(#chalk)" fill="#000">${sil}</g>
+    <path d="${legR}" ${ink}/><path d="${legL}" ${ink}/>
+    <path d="M150 -20 Q210 -27 278 -22M150 20 Q192 46 214 50" stroke="#fff" stroke-width="1.2" fill="none" opacity=".7"/>
+    <path d="M206 -36q4 10 0 20M192 40q10 2 14 14" stroke="#fff" stroke-width="1.6" fill="none"/>
+    <path d="M270 -32v20M254 36l6 18" stroke="#fff" stroke-width="3"/>
+    ${shoe(290, -22, 2)}${shoe(274, 48, -6)}
+    <path d="${armD}" ${ink}/>${printer ? `<path d="${taper([[96, 62], [122, 68], [144, 70]], [16, 14, 12])}" fill="#fff" stroke="#000" stroke-width="1.4"/>` : '<path d="M136 62l-3 15" stroke="#fff" stroke-width="5"/>'}
+    <path d="M84 50q4 8 -2 16" stroke="#fff" stroke-width="1.4" fill="none"/>
+    ${hand(154, 70, 8, false)}
+    <path d="${torso}" ${ink}/>
+    <path d="${torso}" fill="url(#hatch)" opacity=".14"/>
+    <path d="M36 -15 L88 -3 L88 3 L36 15 Z" fill="#fff"/>
+    <path d="M38 -4 L48 -6 L96 -3 L104 0 L96 3 L48 6 L38 4 Z" fill="#000"/><path d="M37 -5h10v10h-10z" fill="#000" stroke="#fff" stroke-width="1.2"/>
+    <path d="M60 -3l30 0M64 2h26" stroke="#fff" stroke-width=".8" opacity=".5"/>
+    <path d="M35 -18 L60 -30 L90 -5M35 18 L60 30 L90 5" fill="none" stroke="#fff" stroke-width="2.4"/>
+    <path d="M60 -30 L54 -40M60 30 L54 40" stroke="#fff" stroke-width="1.6"/>
+    <path d="M62 -42l12 -2l2 7l-12 2z" fill="#fff"/>
+    <circle cx="112" cy="9" r="2.6" fill="#fff"/><circle cx="128" cy="9" r="2.6" fill="#fff"/>
+    <path d="M126 -36 Q140 -34 146 -22 Q150 0 146 22" stroke="#fff" stroke-width="1.4" fill="none" opacity=".6"/>
+    ${printer ? `<path d="M96 -26 Q150 -32 214 -28 Q222 0 214 30 Q150 34 96 28 Q90 0 96 -26Z" fill="#f1ecdf" stroke="#000" stroke-width="2"/>
+      <path d="M58 -14 L96 -18 L96 20 L58 16 Z" fill="#f1ecdf" stroke="#000" stroke-width="2"/>
+      <path d="M58 -14 L40 -34M58 16 L40 36" stroke="#f1ecdf" stroke-width="3"/><path d="M150 -33v66" stroke="#000" stroke-width="1" opacity=".4"/>
+      <g fill="#000"><ellipse cx="114" cy="-10" rx="9" ry="5"/><ellipse cx="160" cy="12" rx="6" ry="9"/><circle cx="188" cy="-14" r="4"/><circle cx="128" cy="20" r="3"/><circle cx="200" cy="8" r="2.5"/><path d="M118 -24q8 4 18 -2"/></g>` : ''}
+    <path d="${armU}" ${ink}/>${printer ? `<path d="${taper([[6, -66], [-18, -70], [-40, -70]], [16, 14, 12])}" fill="#fff" stroke="#000" stroke-width="1.4"/>` : '<path d="M-28 -78l-2 16" stroke="#fff" stroke-width="5"/>'}
+    <path d="M18 -62q8 4 6 12" stroke="#fff" stroke-width="1.4" fill="none"/>
+    ${hand(-50, -70, 180, true)}
+    <path d="M18 -9 L36 -10 L36 10 L18 9 Z" fill="#fff" stroke="#000" stroke-width="1.5"/><path d="M24 -8v16" stroke="#000" stroke-width="1" opacity=".4"/>
+    <g transform="scale(1.18)">
+    <ellipse cx="0" cy="-19" rx="6" ry="3.6" fill="#fff" stroke="#000" stroke-width="1.5"/><ellipse cx="0" cy="19" rx="6" ry="3.6" fill="#fff" stroke="#000" stroke-width="1.5"/>
+    <ellipse cx="0" cy="0" rx="22" ry="19" fill="#fff" stroke="#000" stroke-width="2"/>
+    <path d="M5 -18 Q21 -14 22 0 Q21 14 5 18 Q15 0 5 -18Z" fill="url(#htk)" opacity=".55"/>
+    <path d="M-22 0 Q-23 -19 -6 -20 Q-14 -10 -13 0 Q-14 10 -6 20 Q-23 19 -22 0Z" fill="#000"/>
+    <path d="M-18 -9q4 -5 9 -8M-19 4q5 -2 10 5M-20 -2q4 1 6 -1" stroke="#fff" stroke-width="1.1" fill="none"/>
+    <path d="M-5 -13 Q-3 -8 -5 -3M-5 3 Q-3 8 -5 13" stroke="#000" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <path d="M0 -12 Q3 -8 0 -4M0 4 Q3 8 0 12" stroke="#000" stroke-width="1.5" fill="none"/>
+    <path d="M3 -2.5 L11 -1 L11 1.5 L3 2.5" fill="#fff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M14 -5 Q16 0 14 5" stroke="#000" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    ${o.date ? `<text x="-13" y="3" transform="rotate(-90 -13 0)" ${F0} font-size="7.5" text-anchor="middle" fill="${RED}" letter-spacing=".3">${o.date}</text>` : ''}
+    </g>
+    ${o.card ? `<g transform="translate(-74 -92) rotate(-18)"><rect x="0" y="0" width="28" height="20" fill="#fff" stroke="#000" stroke-width="1.5"/><rect x="0" y="0" width="28" height="6" fill="${RED}"/><path d="M4 11h20M4 15h20" stroke="#000" stroke-width="1"/></g>` : ''}
   </g>`;
+  }
+
+  // улика-номерок на полу
+  const marker = (x, y, n) => `<g><path d="M${x - 11} ${y}l11 -20l11 20z" fill="#fff" stroke="#000" stroke-width="1.5"/><path d="M${x} ${y - 20}l11 20h4l-11 -20z" fill="#999"/><text x="${x}" y="${y - 3}" ${F0} font-size="10" text-anchor="middle" fill="#000">${n}</text></g>`;
+
+  // настенные часы с делениями, цифрами и фигурными стрелками
+  function wallClock(cx, cy, r, h, m, style) {
+    const rad = Math.PI / 180, ha = (h % 12 + m / 60) * 30, ma = m * 6;
+    let o = '';
+    if (style === 'sun') o += range(24).map(i => `<path d="M${cx} ${cy - r - 3}l${i % 2 ? 3 : 5} ${-(i % 2 ? 8 : 14)}l${i % 2 ? 3 : 5} ${(i % 2 ? 8 : 14)}z" fill="#fff" transform="rotate(${i * 15} ${cx} ${cy}) translate(${i % 2 ? -3 : -5} 0)"/>`).join('');
+    if (style === 'square') o += `<rect x="${cx - r - 7}" y="${cy - r - 7}" width="${2 * r + 14}" height="${2 * r + 14}" fill="#000" stroke="#fff" stroke-width="3"/><rect x="${cx - r - 7}" y="${cy - r - 7}" width="${2 * r + 14}" height="${2 * r + 14}" fill="url(#hatch)" opacity=".25"/>`;
+    if (style === 'oct') { const R = r + 9; o += `<polygon points="${range(8).map(i => `${(cx + Math.cos((i * 45 + 22.5) * rad) * R).toFixed(1)},${(cy + Math.sin((i * 45 + 22.5) * rad) * R).toFixed(1)}`).join(' ')}" fill="#000" stroke="#fff" stroke-width="3"/>`; }
+    o += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#000" stroke="#fff" stroke-width="${r > 30 ? 4 : 3}"/><circle cx="${cx}" cy="${cy}" r="${r - 5}" fill="none" stroke="#fff" stroke-width="1"/>`;
+    if (r >= 24) o += range(60).filter(i => i % 5).map(i => `<line x1="${cx}" y1="${cy - r + 5}" x2="${cx}" y2="${cy - r + 8}" stroke="#fff" stroke-width=".8" transform="rotate(${i * 6} ${cx} ${cy})"/>`).join('');
+    o += range(12).map(i => `<line x1="${cx}" y1="${cy - r + 5}" x2="${cx}" y2="${cy - r + (i % 3 ? 10 : 13)}" stroke="#fff" stroke-width="${i % 3 ? 1.8 : 3}" transform="rotate(${i * 30} ${cx} ${cy})"/>`).join('');
+    if (r >= 30) {
+      const labels = style === 'roman' ? ['XII', 'III', 'VI', 'IX'] : ['12', '3', '6', '9'];
+      labels.forEach((t, k) => { const a = (k * 90 - 90) * rad, d = r - 22; o += `<text x="${(cx + Math.cos(a) * d).toFixed(1)}" y="${(cy + Math.sin(a) * d + 3.5).toFixed(1)}" ${F0} font-size="${r > 36 ? 10 : 8}" text-anchor="middle" fill="#fff">${t}</text>`; });
+    }
+    const hand = (ang, len, w, tip) => `<g transform="rotate(${ang.toFixed(1)} ${cx} ${cy})"><path d="M${cx - w} ${cy + len * 0.18}L${cx - w * 0.6} ${cy - len + (tip ? 6 : 0)}L${cx} ${cy - len}L${cx + w * 0.6} ${cy - len + (tip ? 6 : 0)}L${cx + w} ${cy + len * 0.18}Z" fill="#fff"/>${tip ? `<circle cx="${cx}" cy="${cy - len * 0.72}" r="${w * 0.9}" fill="none" stroke="#fff" stroke-width="1.2"/>` : ''}</g>`;
+    o += hand(ha, r * 0.5, Math.max(2, r * 0.07), true) + hand(ma, r * 0.78, Math.max(1.3, r * 0.045), false);
+    if (style === 'sec') o += `<line x1="${cx}" y1="${cy + r * 0.2}" x2="${cx}" y2="${cy - r * 0.85}" stroke="${RED}" stroke-width="1.2" transform="rotate(${(m * 37) % 360} ${cx} ${cy})"/>`;
+    o += `<circle cx="${cx}" cy="${cy}" r="${Math.max(2.5, r * 0.09)}" fill="#fff" stroke="#000" stroke-width="1"/>`;
+    return `<g>${o}</g>`;
+  }
+
+  // напольные часы с маятником
+  const grandfather = (x, y) => `<g stroke="#fff" stroke-width="3" fill="#000">
+    <path d="M${x - 4} ${y + 6}h64v-8q-32 -26 -64 0z"/><circle cx="${x + 28}" cy="${y - 20}" r="4" fill="#fff"/><path d="M${x - 2} ${y - 4}l-4 -10M${x + 58} ${y - 4}l4 -10" stroke-width="3"/>
+    <rect x="${x}" y="${y + 6}" width="56" height="58"/></g>
+    ${wallClock(x + 28, y + 35, 22, 3, 40, 'roman')}
+    <g stroke="#fff" stroke-width="3" fill="#000"><rect x="${x + 6}" y="${y + 64}" width="44" height="118"/><rect x="${x - 4}" y="${y + 182}" width="64" height="30"/></g>
+    <rect x="${x + 6}" y="${y + 64}" width="44" height="118" fill="url(#hatch)" opacity=".18"/>
+    <rect x="${x + 14}" y="${y + 72}" width="28" height="96" fill="#000" stroke="#fff" stroke-width="2"/>
+    <line x1="${x + 28}" y1="${y + 72}" x2="${x + 24}" y2="${y + 150}" stroke="#fff" stroke-width="2"/><circle cx="${x + 24}" cy="${y + 152}" r="8" fill="#fff"/>
+    <rect x="${x + 33}" y="${y + 80}" width="5" height="22" fill="#fff"/><rect x="${x + 18}" y="${y + 92}" width="5" height="22" fill="#fff"/>
+    <path d="M${x + 40} ${y + 78}l-8 26" stroke="#fff" stroke-width="1" opacity=".6"/>`;
 
   /* ============ МЕСТО 1: часовая мастерская ============ */
+  // свет из окна с горизонтальными жалюзи: полосы поперёк, разделённые тенью от средней рамы
+  function blindsLight(x0, x1, y0, y1, xb0, xb1, n) {
+    let o = '';
+    const L = y => x0 + (y - y0) * (xb0 - x0) / (y1 - y0), R = y => x1 + (y - y0) * (xb1 - x1) / (y1 - y0);
+    for (let k = 0; k < n; k++) {
+      const a = y0 + Math.pow(k / n, 1.25) * (y1 - y0), b = y0 + Math.pow((k + 1) / n, 1.25) * (y1 - y0), c = a + (b - a) * 0.58;
+      [[a, c]].forEach(([p, q]) => {
+        const m = y => (L(y) + R(y)) / 2, g = y => 4 + (y - y0) * 0.035;
+        o += `<polygon points="${L(p).toFixed(1)},${p.toFixed(1)} ${(m(p) - g(p)).toFixed(1)},${p.toFixed(1)} ${(m(q) - g(q)).toFixed(1)},${q.toFixed(1)} ${L(q).toFixed(1)},${q.toFixed(1)}"/>`;
+        o += `<polygon points="${(m(p) + g(p)).toFixed(1)},${p.toFixed(1)} ${R(p).toFixed(1)},${p.toFixed(1)} ${R(q).toFixed(1)},${q.toFixed(1)} ${(m(q) + g(q)).toFixed(1)},${q.toFixed(1)}"/>`;
+      });
+    }
+    return `<g fill="#fff">${o}</g>`;
+  }
+
   function scene1() {
-    const clocks = [[340, 92, 34, 3, 40], [425, 68, 22, 7, 15], [492, 122, 40, 10, 10], [575, 78, 26, 5, 50], [648, 126, 30, 1, 35], [722, 76, 24, 8, 20], [738, 160, 18, 11, 5], [398, 158, 18, 2, 55], [566, 160, 15, 6, 30]];
+    const clocks = [[452, 86, 40, 10, 10, 'roman'], [540, 54, 24, 7, 15], [612, 116, 34, 2, 50, 'sun'], [706, 60, 26, 5, 50, 'square'], [762, 150, 20, 11, 5, 'oct'], [532, 150, 21, 4, 20, 'sec'], [440, 186, 17, 8, 35], [690, 152, 16, 1, 25], [292, 82, 22, 9, 45, 'oct']];
     return svg(`
     <rect width="800" height="500" fill="#000"/>
-    <rect x="252" y="20" width="548" height="315" fill="url(#ht)" opacity=".10"/>
-    <!-- окно с жалюзи -->
+    <rect x="240" y="20" width="560" height="315" fill="url(#ht)" opacity=".10"/>
+    <!-- окно: две створки, горизонтальные жалюзи -->
     <rect x="40" y="50" width="190" height="250" fill="#fff"/>
     <path d="M40 300V212h28v-42h26v62h30v-96h22v72h34v-30h20v52h30v70z" fill="#000"/>
+    <g fill="#fff">${[[52, 230], [60, 250], [100, 196], [146, 222], [186, 240], [204, 262]].map(p => `<rect x="${p[0]}" y="${p[1]}" width="3" height="4"/>`).join('')}</g>
     ${rainLines(40, 50, 190, 120, 26, 3)}
-    <g fill="#000">${range(12).map(i => `<rect x="40" y="${50 + i * 21}" width="190" height="9"/>`).join('')}</g>
-    <rect x="131" y="50" width="6" height="250" fill="#000"/>
+    <g fill="#000">${range(12).map(i => `<rect x="40" y="${50 + i * 21}" width="190" height="9"/><rect x="40" y="${58 + i * 21}" width="190" height="1.5" fill="#fff" opacity=".35"/>`).join('')}</g>
+    <path d="M70 50v250M200 50v250" stroke="#000" stroke-width="1.5"/>
+    <rect x="131" y="50" width="8" height="250" fill="#000"/>
     <rect x="34" y="44" width="202" height="262" fill="none" stroke="#fff" stroke-width="5"/>
-    <!-- пол и полосы света -->
+    <rect x="26" y="304" width="218" height="10" fill="#fff"/><rect x="26" y="314" width="218" height="4" fill="#000"/>
+    <path d="M232 40v270" stroke="#fff" stroke-width="2"/><path d="M236 46q14 120 2 264" stroke="#fff" stroke-width="10" fill="none"/><path d="M236 46q14 120 2 264" stroke="#000" stroke-width="2" fill="none" stroke-dasharray="1 9"/>
+    <!-- пол -->
     <line x1="0" y1="335" x2="800" y2="335" stroke="#fff" stroke-width="3"/>
-    <g fill="#fff">${range(8).map(i => `<polygon points="${60 + i * 62},337 ${92 + i * 62},337 ${262 + i * 62},500 ${222 + i * 62},500"/>`).join('')}</g>
+    <g stroke="#2b2b2b" stroke-width="1.5">${[348, 364, 384, 410, 442, 480].map(y => `<line x1="0" y1="${y}" x2="800" y2="${y}"/>`).join('')}</g>
+    ${blindsLight(66, 238, 338, 500, 300, 574, 11)}
     <!-- стена часов -->
-    ${clocks.map(c => clock(...c)).join('')}
-    <g stroke="#fff" stroke-width="3" fill="#000"><rect x="296" y="150" width="26" height="150"/><circle cx="309" cy="172" r="10"/><line x1="309" y1="186" x2="309" y2="270"/><circle cx="309" cy="274" r="8" fill="#fff"/></g>
+    ${clocks.map(c => wallClock(...c)).join('')}
+    ${grandfather(326, 112)}
     <!-- отрывной календарь -->
-    <g transform="rotate(-3 285 230)"><rect x="252" y="196" width="46" height="62" fill="#fff"/><rect x="252" y="196" width="46" height="13" fill="${RED}"/><text x="275" y="248" font-family="Russo One, Arial Black, sans-serif" font-size="34" text-anchor="middle" fill="#000">1</text></g>
+    <g transform="rotate(-3 275 228)"><path d="M275 188v8" stroke="#fff" stroke-width="2"/><circle cx="275" cy="187" r="2.5" fill="#fff"/>
+      <rect x="252" y="196" width="46" height="62" fill="#fff"/><rect x="252" y="196" width="46" height="13" fill="${RED}"/>
+      <text x="275" y="206" ${F0} font-size="7" text-anchor="middle" fill="#fff">ЯНВАРЬ</text>
+      <text x="275" y="244" ${F0} font-size="30" text-anchor="middle" fill="#000">1</text>
+      <path d="M257 250h36M257 254h26" stroke="#000" stroke-width="1"/><path d="M252 258l4 3l4 -3l4 3l4 -3l4 3l4 -3l4 3l4 -3l4 3l4 -3l4 3" fill="none" stroke="#fff" stroke-width="1.2"/></g>
     <!-- прилавок -->
     <rect x="440" y="255" width="340" height="80" fill="#000" stroke="#fff" stroke-width="3"/>
-    <rect x="440" y="255" width="340" height="80" fill="url(#hatch)" opacity=".28"/>
-    <rect x="432" y="246" width="356" height="12" fill="#fff"/>
-    <path d="M470 246v-30h40v-14h26v14h14v30z" fill="#000" stroke="#fff" stroke-width="3"/>
-    <circle cx="590" cy="232" r="11" fill="none" stroke="#fff" stroke-width="3"/><line x1="598" y1="240" x2="612" y2="246" stroke="#fff" stroke-width="4"/>
+    <rect x="440" y="255" width="340" height="80" fill="url(#hatch)" opacity=".22"/>
+    <g stroke="#fff" stroke-width="2" fill="none">${[452, 562, 672].map(x => `<rect x="${x}" y="268" width="96" height="26"/><rect x="${x}" y="300" width="96" height="26"/>`).join('')}</g>
+    <g fill="#fff">${[500, 610, 720].map(x => `<rect x="${x - 8}" y="279" width="16" height="4"/><rect x="${x - 8}" y="311" width="16" height="4"/>`).join('')}</g>
+    <rect x="432" y="246" width="356" height="12" fill="#fff"/><rect x="432" y="258" width="356" height="3" fill="#000"/>
+    <!-- касса -->
+    <path d="M462 246v-34l6 -8h76l6 8v34z" fill="#000" stroke="#fff" stroke-width="3"/>
+    <rect x="474" y="182" width="52" height="20" fill="#000" stroke="#fff" stroke-width="2.5"/><text x="500" y="197" ${F0} font-size="11" text-anchor="middle" fill="#fff">0.00</text>
+    <g fill="#fff">${range(12).map(i => `<rect x="${472 + (i % 6) * 12}" y="${214 + Math.floor(i / 6) * 11}" width="8" height="7"/>`).join('')}</g>
+    <path d="M550 222h10v-10" stroke="#fff" stroke-width="3" fill="none"/><circle cx="560" cy="210" r="4" fill="#fff"/>
+    <!-- карманные часы на подставке, лоток деталей, лупа -->
+    <path d="M592 246v-30M584 246h16" stroke="#fff" stroke-width="3"/>${wallClock(592, 204, 12, 6, 30)}<circle cx="592" cy="190" r="3" fill="none" stroke="#fff" stroke-width="2"/>
+    <rect x="606" y="234" width="28" height="12" fill="#000" stroke="#fff" stroke-width="2"/>
+    <g fill="none" stroke="#fff" stroke-width="1.5"><circle cx="613" cy="240" r="3"/><circle cx="621" cy="239" r="2"/><circle cx="628" cy="241" r="2.5"/></g>
     <!-- монитор камеры -->
+    <path d="M682 248v8M668 258h28" stroke="#fff" stroke-width="3"/>
     <rect x="640" y="192" width="84" height="56" fill="#fff"/><rect x="646" y="198" width="72" height="44" fill="#000"/>
+    <g stroke="#fff" stroke-width=".6" opacity=".35">${range(10).map(i => `<line x1="646" y1="${200 + i * 4.3}" x2="718" y2="${200 + i * 4.3}"/>`).join('')}</g>
     <circle cx="682" cy="220" r="14" fill="none" stroke="#fff" stroke-width="2"/><path d="M682 220l-6 -8M682 220l-7 -10" stroke="#fff" stroke-width="2"/>
-    <circle cx="712" cy="203" r="3" fill="${RED}"/>
-    <path d="M700 0v22l34 14v-12z" fill="#fff"/>
+    <circle cx="710" cy="204" r="3" fill="${RED}"/><text x="652" y="238" font-family="monospace" font-size="6" fill="#fff">CAM 02</text>
+    <path d="M700 0v22l34 14v-12z" fill="#fff"/><circle cx="728" cy="30" r="3" fill="${RED}"/>
+    <!-- лупа часовщика на полу и номерки -->
+    <g transform="rotate(-20 206 384)"><circle cx="206" cy="384" r="10" fill="#000" stroke="#fff" stroke-width="3"/><circle cx="203" cy="381" r="3" fill="#fff" opacity=".7"/><rect x="216" y="381" width="16" height="6" fill="#fff"/></g>
+    ${marker(224, 462, 1)}${marker(452, 360, 2)}${marker(186, 410, 3)}
     <!-- тело -->
-    ${body(292, 414, 1)}
-    <g transform="rotate(14 586 452)"><rect x="566" y="440" width="34" height="22" fill="#fff"/><rect x="566" y="440" width="34" height="6" fill="${RED}"/></g>
-    <path d="M250 468q40 14 90 4" stroke="${RED}" stroke-width="3" fill="none"/>
+    ${body(272, 420, 0.95, { date: '1 ЯНВ', look: 'watch', card: true })}
     `);
   }
 
@@ -104,9 +255,25 @@
     <!-- кресла и тело -->
     ${seats(372, 4, 196, 0)}
     <g>${range(4).map(i => `<path d="M${70 + i * 70} 462v-40q0 -22 24 -22q24 0 24 22v40z" fill="#000" stroke="#fff" stroke-width="3"/>`).join('')}</g>
-    <g><path d="M222 470q4 -50 44 -52q40 2 44 52z" fill="#fff"/><circle cx="262" cy="398" r="22" fill="#000" stroke="#fff" stroke-width="3" transform="rotate(18 262 420)"/>
-      <rect x="258" y="382" width="20" height="7" fill="${RED}" transform="rotate(18 262 420)"/></g>
+    <g>
+      <path d="M216 470q2 -44 46 -50q44 6 46 50z" fill="#000" stroke="#fff" stroke-width="3"/>
+      <path d="M232 434q30 -10 60 0" stroke="#fff" stroke-width="2" fill="none" stroke-dasharray="4 4"/>
+      <path d="M300 442q26 6 30 34" stroke="#000" stroke-width="16" stroke-linecap="round" fill="none"/><path d="M300 442q26 6 30 34" stroke="#fff" stroke-width="2" fill="none"/>
+      <ellipse cx="331" cy="482" rx="7" ry="9" fill="#fff" stroke="#000" stroke-width="1.5"/>
+      <path d="M250 420l12 8l12 -8" fill="#fff" stroke="#000" stroke-width="1.5"/>
+      <!-- голова запрокинута: лицо видно вверх ногами -->
+      <g transform="translate(262 396) rotate(180)">
+        <ellipse cx="0" cy="-30" rx="12" ry="9" fill="#000" stroke="#fff" stroke-width="2"/>
+        <ellipse cx="0" cy="0" rx="21" ry="24" fill="#fff" stroke="#000" stroke-width="2"/>
+        <path d="M-21 -2 Q-22 -26 0 -26 Q22 -26 21 -2 Q14 -18 0 -18 Q-14 -18 -21 -2Z" fill="#000"/>
+        <path d="M-14 4q5 3 10 0M4 4q5 3 10 0" stroke="#000" stroke-width="2" fill="none"/>
+        <circle cx="-9" cy="4" r="7" fill="none" stroke="#000" stroke-width="1.8"/><circle cx="9" cy="4" r="7" fill="none" stroke="#000" stroke-width="1.8"/><path d="M-2 4h4M-16 3l-5 -2M16 3l5 -2" stroke="#000" stroke-width="1.5"/>
+        <path d="M0 8l-3 8h5" stroke="#000" stroke-width="1.5" fill="none"/><path d="M-5 18q5 3 10 0" stroke="#000" stroke-width="1.8" fill="none"/>
+        <text x="0" y="-9" ${F0} font-size="6.5" text-anchor="middle" fill="${RED}">1 ФЕВ</text>
+      </g>
+    </g>
     ${range(5).map(i => `<path d="M${40 + i * 70} 520v-40q0 -22 24 -22q24 0 24 22v40z" fill="#000" stroke="#fff" stroke-width="3"/>`).join('')}
+    <rect x="700" y="20" width="62" height="20" fill="#000" stroke="${RED}" stroke-width="2"/><text x="731" y="35" ${F0} font-size="11" text-anchor="middle" fill="${RED}">ВЫХОД</text>
     <!-- пульт и шредер -->
     <path d="M500 350h150l14 34h-178z" fill="#fff"/><rect x="494" y="384" width="162" height="116" fill="#000" stroke="#fff" stroke-width="3"/>
     <g fill="#000">${range(6).map(i => `<rect x="${514 + i * 22}" y="358" width="12" height="8"/>`).join('')}</g>
@@ -138,29 +305,37 @@
     ${sheet(120, 66, -4)}${sheet(196, 72, 3)}${sheet(272, 72, -2)}${sheet(348, 66, 5)}
     <!-- табельные часы -->
     <rect x="36" y="112" width="70" height="104" fill="#000" stroke="#fff" stroke-width="4"/>
-    ${clock(71, 146, 22, 1, 5)}
+    ${wallClock(71, 146, 24, 1, 5)}
     <rect x="52" y="182" width="38" height="8" fill="#fff"/><rect x="60" y="174" width="22" height="26" fill="#fff" stroke="#000" stroke-width="1.5"/><line x1="64" y1="184" x2="78" y2="184" stroke="${RED}" stroke-width="2.5"/>
     <!-- печатный станок -->
     <g stroke="#fff" stroke-width="4" fill="#000">
       <circle cx="140" cy="318" r="74"/><circle cx="140" cy="318" r="12" fill="#fff"/>
       ${range(6).map(i => `<line x1="140" y1="318" x2="${(140 + Math.cos(i * 1.047) * 74).toFixed(0)}" y2="${(318 + Math.sin(i * 1.047) * 74).toFixed(0)}"/>`).join('')}
-      <path d="M176 262h170v170h-170z"/><path d="M160 432h204v26h-204z"/><path d="M190 262l24 -34h100l24 34z"/>
+      <path d="M184 432 L196 300 Q200 268 226 262 L300 262 Q326 268 330 300 L342 432Z"/><path d="M160 432h204v26h-204z"/><path d="M196 262l18 -30h104l18 30z"/>
     </g>
-    <rect x="176" y="262" width="170" height="170" fill="url(#hatch)" opacity=".22"/>
+    <path d="M184 432 L196 300 Q200 268 226 262 L300 262 Q326 268 330 300 L342 432Z" fill="url(#hatch)" opacity=".22"/>
+    <circle cx="140" cy="318" r="58" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="140" cy="318" r="5" fill="#000"/>
+    <ellipse cx="300" cy="190" rx="34" ry="10" fill="#000" stroke="#fff" stroke-width="3"/><path d="M300 200v32" stroke="#fff" stroke-width="5"/><path d="M276 186q24 -6 48 0" stroke="#fff" stroke-width="1.5" fill="none" opacity=".7"/>
+    <g stroke="#fff" stroke-width="3" fill="#000"><rect x="214" y="282" width="98" height="12" rx="6"/><rect x="214" y="300" width="98" height="12" rx="6"/></g>
+    <path d="M140 318 L196 340" stroke="#fff" stroke-width="7"/><circle cx="196" cy="340" r="7" fill="#fff"/>
+    <rect x="232" y="330" width="64" height="70" fill="#000" stroke="#fff" stroke-width="2"/><g stroke="#fff" stroke-width="1.5">${range(5).map(i => `<line x1="240" y1="${342 + i * 12}" x2="288" y2="${342 + i * 12}"/>`).join('')}</g>
+    <path d="M330 420h40v-20h-40" fill="none" stroke="#fff" stroke-width="3"/><path d="M370 400l14 -6v32l-14 -6" fill="#fff"/>
     <g transform="rotate(-7 250 240)"><rect x="210" y="196" width="84" height="74" fill="#fff"/><text x="252" y="226" font-family="Russo One, Arial Black, sans-serif" font-size="17" text-anchor="middle" fill="#000">KAL.</text><text x="252" y="256" font-family="Russo One, Arial Black, sans-serif" font-size="24" text-anchor="middle" fill="${RED}">APR.</text></g>
     <!-- наборная касса -->
     <rect x="556" y="262" width="216" height="200" fill="#000" stroke="#fff" stroke-width="4"/>
     <g stroke="#fff" stroke-width="2">${range(5).map(i => `<line x1="556" y1="${296 + i * 34}" x2="772" y2="${296 + i * 34}"/>`).join('')}${range(5).map(i => `<line x1="${592 + i * 36}" y1="262" x2="${592 + i * 36}" y2="462"/>`).join('')}</g>
     <g fill="#fff">${range(18).map(i => `<rect x="${562 + (i % 6) * 36 + (i * 7) % 14}" y="${270 + Math.floor(i / 6) * 68 + (i * 5) % 12}" width="9" height="9"/>`).join('')}</g>
+    <g fill="#fff">${range(30).map(i => `<rect x="${566 + (i % 6) * 36}" y="${289 + Math.floor(i / 6) * 34}" width="16" height="3"/>`).join('')}</g>
     <rect x="574" y="234" width="170" height="20" fill="#fff"/><g fill="#000">${range(15).map(i => `<rect x="${580 + i * 11}" y="238" width="8" height="12"/>`).join('')}</g>
     <rect x="574" y="250" width="170" height="5" fill="${RED}"/>
+    <g stroke="#fff" stroke-width="2.5" fill="#000"><rect x="372" y="440" width="26" height="30"/><rect x="402" y="446" width="22" height="24"/></g><path d="M372 448h26M402 452h22" stroke="#fff" stroke-width="1.5"/><path d="M380 440q4 -8 10 0" stroke="#000" stroke-width="4"/>
     <!-- стол с папкой -->
     <path d="M362 368h180v14h-180z" fill="#fff"/><path d="M376 382v80M528 382v80" stroke="#fff" stroke-width="6"/>
     <g transform="rotate(-6 440 350)"><rect x="392" y="336" width="88" height="34" fill="#fff" stroke="#000" stroke-width="2"/><rect x="398" y="342" width="32" height="6" fill="#000"/><circle cx="460" cy="353" r="10" fill="none" stroke="${RED}" stroke-width="3"/></g>
     <path d="M500 340h26v28h-26z" fill="#000" stroke="#fff" stroke-width="3"/>
     <!-- тело и бумага -->
     <g fill="#fff">${range(5).map(i => `<rect x="${30 + i * 3}" y="${474 - i * 9}" width="${120 - i * 5}" height="6"/>`).join('')}</g>
-    ${body(330, 470, 0.86)}
+    ${body(300, 446, 0.7, { date: '1 МАР', look: 'printer' })}
     `);
   }
 
@@ -193,14 +368,23 @@
     <path d="M462 350V190q0 -34 58 -34q58 0 58 34v160z" fill="url(#hatch)" opacity=".2"/>
     <path d="M470 350q6 -78 50 -84q44 6 50 84z" fill="#000" stroke="#fff" stroke-width="3"/>
     <path d="M506 268l14 26l14 -26z" fill="#fff"/>
-    <circle cx="520" cy="238" r="23" fill="#fff"/>
-    <path d="M497 232q4 -28 24 -26q22 0 22 26q-10 -12 -24 -12q-12 0 -22 12z" fill="#000"/>
+    <path d="M500 268q20 18 40 0l-6 14q-14 10 -28 0z" fill="#fff" stroke="#000" stroke-width="1.5"/>
+    <circle cx="520" cy="210" r="13" fill="#000" stroke="#fff" stroke-width="2"/>
+    <ellipse cx="520" cy="240" rx="21" ry="24" fill="#fff" stroke="#000" stroke-width="2"/>
+    <path d="M499 238q0 -26 21 -26q21 0 21 26q-6 -16 -21 -16q-15 0 -21 16z" fill="#000"/>
+    <path d="M534 224q8 10 7 26" stroke="#fff" stroke-width="1.2" fill="none" opacity=".6"/>
+    <path d="M508 242q5 3 9 0M523 242q5 3 9 0" stroke="#000" stroke-width="2" fill="none"/>
+    <path d="M520 246l-3 9h5" stroke="#000" stroke-width="1.5" fill="none"/><path d="M514 258q6 2 12 0" stroke="#000" stroke-width="1.8" fill="none"/>
+    <path d="M541 240q4 18 -6 30" stroke="#000" stroke-width="1" fill="none"/><rect x="527" y="232" width="13" height="16" fill="url(#htk)" opacity=".5"/>
     <path d="M472 300q50 14 96 0" stroke="#fff" stroke-width="3" fill="none" stroke-dasharray="6 5"/>
     <!-- часовой механизм -->
     <g transform="translate(455 276)"><path d="M0 0q30 -34 44 -38" stroke="${RED}" stroke-width="3" fill="none"/>
       <circle r="22" fill="#000" stroke="${RED}" stroke-width="4"/><circle r="8" fill="${RED}"/>
       ${range(8).map(i => `<rect x="-3" y="-29" width="6" height="8" fill="${RED}" transform="rotate(${i * 45})"/>`).join('')}
       <circle cx="-22" cy="26" r="12" fill="#000" stroke="${RED}" stroke-width="3"/>${range(6).map(i => `<rect x="-24" y="10" width="4" height="5" fill="${RED}" transform="rotate(${i * 60} -22 26)"/>`).join('')}</g>
+    <!-- книжные полки -->
+    <g stroke="#fff" stroke-width="3" fill="#000"><rect x="610" y="196" width="170" height="140"/></g>
+    ${[214, 260, 306].map((y, r) => `<line x1="610" y1="${y + 22}" x2="780" y2="${y + 22}" stroke="#fff" stroke-width="3"/>` + range(11).map(i => `<rect x="${616 + i * 15}" y="${y - 12 + ((i * 7 + r * 3) % 9)}" width="11" height="${34 - ((i * 7 + r * 3) % 9)}" fill="${(i + r) % 4 === 0 ? '#fff' : '#000'}" stroke="#fff" stroke-width="1.5"/>`).join('')).join('')}
     <!-- стол -->
     <path d="M330 344h440v22h-440z" fill="#fff"/>
     <path d="M344 366h412v134h-412z" fill="#000" stroke="#fff" stroke-width="4"/>
@@ -209,6 +393,7 @@
     <!-- книга на столе -->
     <path d="M556 318l52 10l52 -10v24l-52 10l-52 -10z" fill="#fff" stroke="#000" stroke-width="2"/><line x1="608" y1="328" x2="608" y2="352" stroke="#000" stroke-width="2"/>
     <g stroke="${RED}" stroke-width="2"><line x1="566" y1="328" x2="600" y2="335"/><line x1="566" y1="335" x2="600" y2="342"/><line x1="616" y1="335" x2="650" y2="328"/></g>
+    <rect x="452" y="322" width="62" height="20" fill="#000" stroke="#fff" stroke-width="2.5"/><text x="483" y="336" ${F0} font-size="9" text-anchor="middle" fill="#fff">М. ХОЛТ</text>
     <!-- лампа и молоток -->
     <path d="M700 344v-50l-30 -22" stroke="#fff" stroke-width="4" fill="none"/><path d="M650 262l34 -10l10 30z" fill="#fff"/>
     <path d="M684 252l-60 92h110z" fill="#fff" opacity=".14"/>
@@ -256,19 +441,65 @@
     `, '0 0 800 420');
   }
 
+  // голова Человека-календаря: лысый череп в татуировке-сетке с датами
+  function calHead(cx, cy, k, id) {
+    const head = `M${cx - 62} ${cy} Q${cx - 64} ${cy - 86} ${cx} ${cy - 90} Q${cx + 64} ${cy - 86} ${cx + 62} ${cy} Q${cx + 60} ${cy + 62} ${cx + 30} ${cy + 86} Q${cx} ${cy + 100} ${cx - 30} ${cy + 86} Q${cx - 60} ${cy + 62} ${cx - 62} ${cy}Z`;
+    let grid = '';
+    for (let r = 0; r < 13; r++) for (let c = 0; c < 9; c++) {
+      const x = cx - 72 + c * 16, y = cy - 96 + r * 15, n = r * 9 + c - 2;
+      grid += `<rect x="${x}" y="${y}" width="16" height="15" fill="none" stroke="#000" stroke-width="${r < 6 ? 1.1 : 0.6}" opacity="${r < 6 ? 1 : 0.55}"/>`;
+      if (n > 0 && n < 32 && (r < 4 || (r > 6 && (c < 2 || c > 6)))) grid += `<text x="${x + 13}" y="${y + 7}" font-family="monospace" font-size="5.5" text-anchor="end" fill="#000">${n}</text>`;
+      if (n === 1 || n === 14) grid += `<circle cx="${x + 8}" cy="${y + 7.5}" r="6.5" fill="none" stroke="${RED}" stroke-width="1.8"/>`;
+    }
+    return `<g transform="translate(${cx} ${cy}) scale(${k}) translate(${-cx} ${-cy})">
+      <defs><clipPath id="${id}"><path d="${head}"/></clipPath></defs>
+      <ellipse cx="${cx - 62}" cy="${cy + 6}" rx="10" ry="18" fill="#fff" stroke="#000" stroke-width="2.5"/><ellipse cx="${cx + 62}" cy="${cy + 6}" rx="10" ry="18" fill="#fff" stroke="#000" stroke-width="2.5"/>
+      <path d="${head}" fill="#fff" stroke="#000" stroke-width="3"/>
+      <g clip-path="url(#${id})">${grid}
+        <path d="M${cx + 8} ${cy - 92} Q${cx + 70} ${cy - 70} ${cx + 64} ${cy + 10} Q${cx + 56} ${cy + 70} ${cx + 22} ${cy + 96} L${cx + 80} ${cy + 100} L${cx + 80} ${cy - 100}Z" fill="url(#htk)" opacity=".75"/>
+      </g>
+      <path d="M${cx - 44} ${cy - 2} Q${cx - 26} ${cy - 12} ${cx - 8} ${cy - 4}M${cx + 8} ${cy - 4} Q${cx + 26} ${cy - 12} ${cx + 44} ${cy - 2}" stroke="#000" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <ellipse cx="${cx - 26}" cy="${cy + 10}" rx="19" ry="13" fill="url(#htk)" opacity=".8"/><ellipse cx="${cx + 26}" cy="${cy + 10}" rx="19" ry="13" fill="url(#htk)" opacity=".9"/>
+      <path d="M${cx - 40} ${cy + 10} Q${cx - 26} ${cy + 2} ${cx - 12} ${cy + 10} Q${cx - 26} ${cy + 18} ${cx - 40} ${cy + 10}Z" fill="#fff" stroke="#000" stroke-width="2.5"/>
+      <path d="M${cx + 12} ${cy + 10} Q${cx + 26} ${cy + 2} ${cx + 40} ${cy + 10} Q${cx + 26} ${cy + 18} ${cx + 12} ${cy + 10}Z" fill="#fff" stroke="#000" stroke-width="2.5"/>
+      <circle cx="${cx - 24}" cy="${cy + 10}" r="3.6" fill="#000"/><circle cx="${cx + 26}" cy="${cy + 10}" r="3.6" fill="#000"/>
+      <path d="M${cx - 40} ${cy + 20} q14 6 26 0M${cx + 14} ${cy + 20} q14 6 26 0" stroke="#000" stroke-width="1.5" fill="none"/>
+      <path d="M${cx + 2} ${cy + 4} L${cx - 6} ${cy + 40} Q${cx + 2} ${cy + 46} ${cx + 10} ${cy + 40}" stroke="#000" stroke-width="3" fill="none" stroke-linejoin="round"/>
+      <path d="M${cx - 32} ${cy + 60} Q${cx - 8} ${cy + 66} ${cx + 32} ${cy + 54}" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M${cx - 20} ${cy + 63} Q${cx} ${cy + 70} ${cx + 22} ${cy + 59}" stroke="#000" stroke-width="1.4" fill="none"/>
+      <path d="M${cx - 50} ${cy + 30} q6 22 20 34M${cx + 50} ${cy + 28} q-6 22 -18 32" stroke="#000" stroke-width="1.6" fill="none"/>
+      <path d="M${cx - 30} ${cy + 58} l-5 -5M${cx + 30} ${cy + 56} l5 -6" stroke="#000" stroke-width="2.5"/>
+      <path d="M${cx - 14} ${cy + 80} q14 6 28 0" stroke="#000" stroke-width="1.5" fill="none"/>
+      <path d="M${cx - 48} ${cy - 30} h20M${cx + 26} ${cy - 30} h22" stroke="#000" stroke-width="1.2"/>
+    </g>`;
+  }
+  // плащ с календарной сеткой
+  const calCape = (d, id) => {
+    let g = '';
+    for (let r = 0; r < 14; r++) for (let c = 0; c < 26; c++) g += `<rect x="${c * 30}" y="${200 + r * 26}" width="30" height="26" fill="none" stroke="#000" stroke-width="1.4"/>${(r * 26 + c) % 7 === 3 ? `<text x="${c * 30 + 26}" y="${200 + r * 26 + 11}" font-family="monospace" font-size="9" text-anchor="end" fill="#000">${(r * 26 + c) % 31 + 1}</text>` : ''}`;
+    return `<defs><clipPath id="${id}"><path d="${d}"/></clipPath></defs><path d="${d}" fill="#f1ecdf" stroke="#000" stroke-width="3"/><g clip-path="url(#${id})">${g}<rect x="0" y="200" width="800" height="400" fill="url(#htk)" opacity=".35"/></g><path d="${d}" fill="none" stroke="#fff" stroke-width="2"/>`;
+  };
+
   function basement() {
-    const leaves = range(9).map(i => { const x = 300 + i * 54, y = 40 + (i * 37) % 60; return `<line x1="${x + 17}" y1="0" x2="${x + 17}" y2="${y}" stroke="#fff" stroke-width="1.5"/><g transform="rotate(${(i * 13) % 16 - 8} ${x + 17} ${y})"><rect x="${x}" y="${y}" width="34" height="46" fill="#fff"/><rect x="${x}" y="${y}" width="34" height="9" fill="${i % 4 === 1 ? RED : '#000'}"/><text x="${x + 17}" y="${y + 37}" font-family="Russo One, Arial Black, sans-serif" font-size="22" text-anchor="middle" fill="#000">1</text></g>`; }).join('');
+    const leaves = range(9).map(i => { const x = 250 + i * 60, y = 30 + (i * 37) % 60; return `<line x1="${x + 17}" y1="0" x2="${x + 17}" y2="${y}" stroke="#fff" stroke-width="1.5"/><g transform="rotate(${(i * 13) % 16 - 8} ${x + 17} ${y})"><rect x="${x}" y="${y}" width="34" height="46" fill="#fff"/><rect x="${x}" y="${y}" width="34" height="9" fill="${i % 4 === 1 ? RED : '#000'}"/><text x="${x + 17}" y="${y + 37}" ${F0} font-size="22" text-anchor="middle" fill="#000">1</text></g>`; }).join('');
     return svg(`
     <rect width="800" height="420" fill="#000"/>
-    <path d="M0 0h230l150 420h-380z" fill="#fff"/>
-    <g fill="#000">${range(8).map(i => `<path d="M${-20 + i * 28} ${90 + i * 44}h${250 - i * 4}v14h-${250 - i * 4}z"/>`).join('')}</g>
-    ${batShadow(-40, 60, 0.8, '#000')}
+    <path d="M0 0h200l160 420h-360z" fill="#fff"/>
+    <g fill="#000">${range(8).map(i => `<path d="M${-20 + i * 26} ${90 + i * 44}h${230 - i * 4}v14h-${230 - i * 4}z"/>`).join('')}</g>
+    ${batShadow(-60, 40, 0.75, '#000')}
     ${leaves}
-    <g stroke="#fff" stroke-width="4" fill="#000"><circle cx="690" cy="300" r="56"/><path d="M560 250h110v170h-110z"/></g>
-    <path d="M430 420q0 -110 60 -120q64 10 64 120z" fill="#fff"/>
-    <circle cx="492" cy="262" r="34" fill="#fff"/>
-    <g fill="${RED}" font-family="Russo One, Arial Black, sans-serif" font-size="9"><text x="466" y="246">JAN</text><text x="484" y="238">FEB</text><text x="504" y="244">MAR</text><text x="512" y="258">APR</text></g>
-    <path d="M474 268h12M498 268h12" stroke="#000" stroke-width="4"/><path d="M482 284q10 6 20 0" stroke="#000" stroke-width="3" fill="none"/>
+    <!-- станок за спиной -->
+    <g stroke="#fff" stroke-width="4" fill="#000"><circle cx="720" cy="300" r="70"/><path d="M640 230h70v190h-70z"/></g>
+    <g stroke="#fff" stroke-width="3">${range(6).map(i => `<line x1="720" y1="300" x2="${(720 + Math.cos(i * 1.047) * 70).toFixed(0)}" y2="${(300 + Math.sin(i * 1.047) * 70).toFixed(0)}"/>`).join('')}</g>
+    <!-- лампа снизу -->
+    <path d="M330 420l90 -150l170 150z" fill="#fff" opacity=".12"/>
+    ${calCape('M380 420 Q384 320 450 296 L500 286 L560 300 L620 286 L670 296 Q736 320 740 420Z', 'capeB')}
+    <path d="M478 300 L452 196 L520 270 Z M642 300 L668 196 L600 270 Z" fill="#f1ecdf" stroke="#000" stroke-width="3"/>
+    <path d="M466 250 L520 270M654 250 L600 270" stroke="#000" stroke-width="1.5"/>
+    ${calHead(560, 196, 1, 'calA')}
+    <g transform="rotate(-8 450 360)"><rect x="392" y="320" width="120" height="86" fill="#fff" stroke="#000" stroke-width="3"/>
+      <text x="452" y="352" ${F0} font-size="20" text-anchor="middle" fill="#000">KAL. MAI.</text><text x="452" y="386" ${F0} font-size="22" text-anchor="middle" fill="${RED}">ГОРОД</text></g>
+    <path d="M500 380 q16 -14 30 -4 l10 30 h-36z" fill="#fff" stroke="#000" stroke-width="2.5"/>
     `, '0 0 800 420');
   }
 
@@ -276,36 +507,68 @@
     return svg(`
     <rect width="800" height="420" fill="${RED}"/>
     <rect width="800" height="420" fill="url(#htk)" opacity=".3"/>
-    ${batShadow(60, -10, 1.7, '#000')}
-    <path d="M330 420q4 -90 70 -96q66 6 70 96z" fill="#fff"/>
-    <circle cx="400" cy="296" r="30" fill="#fff"/>
-    <path d="M384 300h10M406 300h10" stroke="#000" stroke-width="4"/><ellipse cx="400" cy="314" rx="7" ry="5" fill="#000"/>
-    <path d="M352 352l-40 -50M448 352l40 -50" stroke="#fff" stroke-width="12" stroke-linecap="round"/>
-    <g fill="#fff">${range(14).map(i => `<rect x="${40 + (i * 131) % 720}" y="${20 + (i * 67) % 380}" width="20" height="27" transform="rotate(${i * 37} ${50 + (i * 131) % 720} ${34 + (i * 67) % 380})"/>`).join('')}</g>
+    ${batShadow(40, -20, 1.8, '#000')}
+    <g fill="#fff" stroke="#000" stroke-width="2">${range(14).map(i => `<rect x="${40 + (i * 131) % 720}" y="${20 + (i * 67) % 380}" width="22" height="29" transform="rotate(${i * 37} ${51 + (i * 131) % 720} ${34 + (i * 67) % 380})"/>`).join('')}</g>
+    ${calCape('M300 420 Q312 330 360 316 L440 316 Q488 330 500 420Z', 'capeC')}
+    <g stroke="#000" stroke-width="3">${[['M352 340 Q300 300 290 240', 'L'], ['M448 340 Q500 300 510 240', 'R']].map(([d]) => `<path d="${d}" stroke="#000" stroke-width="30" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#f1ecdf" stroke-width="24" fill="none" stroke-linecap="round"/>`).join('')}</g>
+    <g fill="#fff" stroke="#000" stroke-width="2.5"><ellipse cx="288" cy="232" rx="14" ry="12"/><ellipse cx="512" cy="232" rx="14" ry="12"/></g>
+    ${calHead(400, 262, 0.62, 'calB')}
+    <path d="M384 300 q16 10 32 0" stroke="#000" stroke-width="3" fill="#000"/>
     `, '0 0 800 420');
+  }
+
+  // комиссар Гордон: очки, усы, плащ с поднятым воротом
+  function gordonFig(x, y, k) {
+    return `<g transform="translate(${x} ${y}) scale(${k})">
+    <path d="M-110 300 L-96 70 Q-90 22 -40 8 L0 0 L40 8 Q90 22 96 70 L110 300Z" fill="#000" stroke="#fff" stroke-width="3"/>
+    <path d="M10 0 Q90 22 96 70 L110 300 L20 300Z" fill="url(#hatch)" opacity=".22"/>
+    <path d="M-40 8 L-58 -40 L-6 -6Z M40 8 L58 -40 L6 -6Z" fill="#000" stroke="#fff" stroke-width="3"/>
+    <path d="M-34 6 L-14 80 L-56 150 L-72 70Z M34 6 L14 80 L56 150 L72 70Z" fill="#000" stroke="#fff" stroke-width="3"/>
+    <path d="M-16 0 L0 70 L16 0Z" fill="#fff"/>
+    <path d="M-6 4h12l-2 12l10 58l-14 18l-14 -18l10 -58z" fill="#000" stroke="#fff" stroke-width="1.5"/>
+    <path d="M-100 190h200" stroke="#fff" stroke-width="3"/><rect x="-14" y="182" width="28" height="18" fill="#000" stroke="#fff" stroke-width="3"/>
+    <circle cx="-34" cy="230" r="4" fill="#fff"/><circle cx="-34" cy="270" r="4" fill="#fff"/>
+    <path d="M-80 120q20 60 10 140M60 140q-10 60 0 120" stroke="#fff" stroke-width="1.5" fill="none" opacity=".6"/>
+    <path d="M-92 210h40l-6 20h-30z" fill="#000" stroke="#fff" stroke-width="2.5"/><path d="M58 210h40l-6 20h-30z" fill="#000" stroke="#fff" stroke-width="2.5"/>
+    <path d="M-20 -14 L-24 4 L-4 -2Z M20 -14 L24 4 L4 -2Z" fill="#fff" stroke="#000" stroke-width="2"/>
+    <!-- голова -->
+    <ellipse cx="-50" cy="-74" rx="9" ry="15" fill="#fff" stroke="#000" stroke-width="2.5"/><ellipse cx="50" cy="-74" rx="9" ry="15" fill="#fff" stroke="#000" stroke-width="2.5"/>
+    <path d="M-48 -90 Q-50 -140 0 -142 Q50 -140 48 -90 Q48 -46 26 -24 Q0 -10 -26 -24 Q-48 -46 -48 -90Z" fill="#fff" stroke="#000" stroke-width="3"/>
+    <path d="M8 -142 Q50 -140 48 -90 Q48 -46 26 -24 Q14 -16 4 -14 Q30 -50 26 -100 Q24 -130 8 -142Z" fill="url(#htk)" opacity=".6"/>
+    <path d="M-50 -94 Q-60 -150 0 -156 Q58 -152 52 -96 Q46 -118 28 -122 Q6 -128 -14 -124 Q-38 -118 -50 -94Z" fill="#fff" stroke="#000" stroke-width="3"/>
+    <path d="M10 -154 Q58 -152 52 -96 Q46 -118 28 -122 Q22 -140 10 -154Z" fill="url(#hatchk)" opacity=".5"/>
+    <g stroke="#000" stroke-width="1.5" fill="none"><path d="M-44 -104 Q-36 -134 -6 -146"/><path d="M-34 -118 Q-20 -142 14 -148"/><path d="M-20 -124 Q0 -144 34 -140"/><path d="M0 -127 Q24 -140 46 -120"/><path d="M-48 -98 Q-50 -122 -36 -136"/></g>
+    <path d="M-30 -112 h22M-26 -106 h16" stroke="#000" stroke-width="1.3"/>
+    <path d="M-38 -94 Q-24 -102 -8 -96M8 -96 Q24 -102 38 -94" stroke="#000" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <rect x="-40" y="-90" width="34" height="22" rx="4" fill="#fff" stroke="#000" stroke-width="4"/><rect x="6" y="-90" width="34" height="22" rx="4" fill="#fff" stroke="#000" stroke-width="4"/>
+    <path d="M-6 -82h12M-40 -84l-10 -2M40 -84l10 -2" stroke="#000" stroke-width="3"/>
+    <path d="M-34 -86l8 -2M12 -86l8 -2" stroke="#000" stroke-width="1.5" opacity=".5"/>
+    <circle cx="-22" cy="-78" r="3.4" fill="#000"/><circle cx="24" cy="-78" r="3.4" fill="#000"/>
+    <path d="M2 -70 L-6 -46 Q2 -40 10 -46" stroke="#000" stroke-width="3" fill="none" stroke-linejoin="round"/>
+    <path d="M-20 -54 q-6 10 -2 20M22 -54 q6 10 2 20" stroke="#000" stroke-width="1.6" fill="none"/>
+    <path d="M-30 -36 Q-16 -48 0 -42 Q16 -48 30 -36 Q30 -24 16 -28 Q6 -22 0 -26 Q-6 -22 -16 -28 Q-30 -24 -30 -36Z" fill="#fff" stroke="#000" stroke-width="3"/>
+    <g stroke="#000" stroke-width="1.4"><path d="M-22 -36l-2 6M-14 -38l-2 8M-6 -38l-1 9M6 -38l1 9M14 -38l2 8M22 -36l2 6"/></g>
+    <path d="M-10 -20 q10 4 20 0" stroke="#000" stroke-width="2" fill="none"/>
+    </g>`;
   }
 
   function gordon() {
     return svg(`
     <rect width="800" height="420" fill="#000"/>
     <path d="M0 420V250h120v-70h90v110h100v-150h80v190h410v90z" fill="#fff" opacity=".12"/>
+    <path d="M605 258l-150 -150h70zM605 258l190 -110l10 60z" fill="${RED}" opacity=".4"/><path d="M640 258l-60 -200h40z" fill="#fff" opacity=".15"/>
     ${rainLines(0, 0, 800, 420, 120, 44, '#fff')}
     <!-- патрульная машина -->
-    <path d="M470 330q10 -50 60 -54h120q40 4 60 54h60v60h-330v-60z" fill="#fff"/>
-    <rect x="548" y="290" width="46" height="34" fill="#000"/><rect x="604" y="290" width="46" height="34" fill="#000"/>
-    <circle cx="530" cy="392" r="26" fill="#000" stroke="#fff" stroke-width="4"/><circle cx="700" cy="392" r="26" fill="#000" stroke="#fff" stroke-width="4"/>
-    <rect x="580" y="258" width="50" height="16" fill="${RED}"/><path d="M605 258l-120 -120h60zM605 258l160 -100l20 50z" fill="${RED}" opacity=".45"/>
-    <text x="606" y="362" font-family="Russo One, Arial Black, sans-serif" font-size="24" text-anchor="middle" fill="#000">G.C.P.D.</text>
-    <!-- Гордон -->
-    <path d="M150 420q0 -160 40 -190l30 -14h40l30 14q40 30 40 190z" fill="#fff"/>
-    <path d="M240 232l-20 60l20 128l20 -128z" fill="#000"/><path d="M220 216l-30 30l30 30zM260 216l30 30l-30 30z" fill="#000" stroke="#fff" stroke-width="2"/>
-    <circle cx="240" cy="176" r="40" fill="#fff"/>
-    <path d="M200 166q4 -40 40 -40q36 0 40 40q-40 -18 -80 0z" fill="#000"/>
-    <g fill="none" stroke="#000" stroke-width="4"><rect x="212" y="170" width="22" height="16" rx="3"/><rect x="246" y="170" width="22" height="16" rx="3"/><line x1="234" y1="176" x2="246" y2="176"/></g>
-    <path d="M216 198q24 -12 48 0q-6 10 -24 4q-18 6 -24 -4z" fill="#000"/>
-    <!-- силуэты -->
-    <path d="M330 420V300l-8 -30l14 20h20l14 -20l-8 30v120z" fill="#000" stroke="#fff" stroke-width="2"/>
-    <path d="M396 420v-76q0 -16 14 -16t14 16v76z" fill="#000" stroke="${RED}" stroke-width="2"/>
+    <path d="M440 336q10 -54 70 -60h150q48 4 70 60h60v62h-370v-62z" fill="#fff"/>
+    <path d="M516 284h66v44h-80zM590 284h64q22 8 34 44h-98z" fill="#000"/><path d="M586 284v100" stroke="#000" stroke-width="3"/>
+    <path d="M440 352h370" stroke="#000" stroke-width="3"/><rect x="796" y="342" width="14" height="10" fill="${RED}"/><rect x="440" y="342" width="16" height="10" fill="#000"/>
+    <circle cx="512" cy="398" r="28" fill="#000" stroke="#fff" stroke-width="4"/><circle cx="512" cy="398" r="11" fill="#fff"/><circle cx="728" cy="398" r="28" fill="#000" stroke="#fff" stroke-width="4"/><circle cx="728" cy="398" r="11" fill="#fff"/>
+    <rect x="566" y="262" width="34" height="14" fill="${RED}"/><rect x="600" y="262" width="34" height="14" fill="#fff" stroke="#000" stroke-width="2"/>
+    <text x="640" y="376" ${F0} font-size="22" text-anchor="middle" fill="#000">G.C.P.D.</text>
+    <path d="M660 300l30 26" stroke="#fff" stroke-width="3"/>
+    <!-- полицейские вдали -->
+    <g fill="#000" stroke="#fff" stroke-width="2"><path d="M380 420v-110q0 -14 12 -16h20q12 2 12 16v110z"/><path d="M384 296h36l-4 -12h-28z"/><circle cx="402" cy="276" r="10"/><path d="M384 270h36v-6h-36z"/></g>
+    ${gordonFig(236, 214, 1.08)}
     `, '0 0 800 420');
   }
 
@@ -449,7 +712,9 @@
     <g transform="rotate(8 130 150)"><rect x="92" y="126" width="80" height="48" fill="#fff" stroke="${RED}" stroke-width="3"/><path d="M100 140h62M100 150h62M100 160h40" stroke="${RED}" stroke-width="2"/><circle cx="132" cy="126" r="6" fill="${RED}"/></g>
     <!-- часы с кукушкой -->
     <path d="M400 30l-56 50h112z" fill="#fff"/><rect x="356" y="80" width="88" height="92" fill="#000" stroke="#fff" stroke-width="4"/>
-    <circle cx="400" cy="124" r="30" fill="#fff"/><path d="M400 124l-6 -18M400 124l22 8" stroke="#000" stroke-width="4" stroke-linecap="round"/>
+    <rect x="356" y="80" width="88" height="92" fill="url(#hatch)" opacity=".2"/>
+    ${wallClock(400, 124, 30, 11, 17, 'roman')}
+    <path d="M344 80q-12 -6 -14 6q10 -2 14 4M456 80q12 -6 14 6q-10 -2 -14 4" fill="#fff"/><path d="M366 172l-8 10h84l-8 -10" fill="#fff"/>
     <rect x="388" y="56" width="24" height="18" fill="#000"/><path d="M382 172v60M418 172v44" stroke="#fff" stroke-width="2"/><path d="M374 232h16l-8 22zM412 216h12l-6 18z" fill="#fff"/>
     <path d="M400 172v36" stroke="#fff" stroke-width="3"/><circle cx="400" cy="216" r="10" fill="#fff"/><rect x="406" y="196" width="18" height="12" fill="${RED}" transform="rotate(14 415 202)"/>
     <!-- полки с чаем и стойка -->
@@ -500,29 +765,64 @@
     ${rainLines(0, 0, 800, 420, 110, 71, '#fff')}
     <ellipse cx="470" cy="360" rx="330" ry="56" fill="#fff"/><ellipse cx="470" cy="360" rx="330" ry="56" fill="url(#htk)" opacity=".35"/>
     <path d="M140 360q0 60 330 60t330 -60v24q0 60 -330 60t-330 -60z" fill="#000" stroke="#fff" stroke-width="3"/>
+    ${hatterFig(560, 250, 0.42)}
     ${tcup(300, 300, 0.9, true)}${tcup(470, 276, 0.8, true)}${tcup(640, 300, 0.9, true)}
     <g transform="translate(470 372)"><path d="M-54 -34h108l-12 64q-42 16 -84 0z" fill="#000" stroke="${RED}" stroke-width="4"/><ellipse cx="0" cy="-34" rx="54" ry="10" fill="#fff"/><circle cx="0" cy="-58" r="15" fill="#fff"/><path d="M-15 -62q0 -22 15 -22q15 0 15 22q-6 -8 -15 -8q-9 0 -15 8z" fill="#000"/><path d="M-22 -40q22 10 44 0" stroke="${RED}" stroke-width="4" fill="none"/></g>
     `, '0 0 800 420');
+  }
+
+  // Безумный Шляпник: огромный цилиндр, всклокоченные волосы, зубастая ухмылка, бант в горошек
+  function hatterFig(x, y, k) {
+    const tufts = side => range(5).map(i => { const a = side * (20 + i * 14), r = 66; const sx = side * (40 + i * 4), sy = -10 + i * 14;
+      return `<path d="M${sx} ${sy} l${side * (26 + (i % 2) * 14)} ${-14 + i * 9} l${-side * 8} ${10} l${side * 22} ${4 + i * 6} l${-side * 34} ${-2}z" fill="#000" stroke="#fff" stroke-width="2"/>`; }).join('');
+    return `<g transform="translate(${x} ${y}) scale(${k})">
+    <!-- сюртук -->
+    <path d="M-150 200 Q-140 100 -70 80 L70 80 Q140 100 150 200Z" fill="#000" stroke="#fff" stroke-width="3"/>
+    <path d="M20 80 L70 80 Q140 100 150 200 L60 200Z" fill="url(#hatch)" opacity=".22"/>
+    <path d="M-46 80 L0 200 L46 80Z" fill="#f1ecdf"/>
+    <path d="M-46 80 L0 200 L46 80Z" fill="url(#htk)" opacity=".35"/>
+    <path d="M-70 80 L-30 150 L-56 200 L-100 120Z M70 80 L30 150 L56 200 L100 120Z" fill="#000" stroke="#fff" stroke-width="3"/>
+    <path d="M-30 140 Q0 170 30 140" stroke="#fff" stroke-width="2" fill="none" stroke-dasharray="3 3"/><circle cx="30" cy="140" r="8" fill="#fff" stroke="#000" stroke-width="2"/>
+    <circle cx="0" cy="170" r="3" fill="#000"/><circle cx="0" cy="188" r="3" fill="#000"/>
+    <!-- воротник и бант -->
+    <path d="M-30 60 L-20 92 L0 80 L20 92 L30 60Z" fill="#fff" stroke="#000" stroke-width="2.5"/>
+    <path d="M0 84 L-62 58 L-66 116 Z M0 84 L62 58 L66 116 Z" fill="${RED}" stroke="#000" stroke-width="3"/>
+    <g fill="#fff">${[[-46, 72], [-52, 96], [-30, 90], [46, 72], [52, 96], [30, 90]].map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="5"/>`).join('')}</g>
+    <rect x="-12" y="74" width="24" height="20" rx="4" fill="${RED}" stroke="#000" stroke-width="3"/>
+    <!-- голова -->
+    ${tufts(-1)}${tufts(1)}
+    <ellipse cx="-54" cy="10" rx="10" ry="16" fill="#fff" stroke="#000" stroke-width="2.5"/><ellipse cx="54" cy="10" rx="10" ry="16" fill="#fff" stroke="#000" stroke-width="2.5"/>
+    <path d="M-52 -14 Q-56 52 -24 70 Q0 80 24 70 Q56 52 52 -14Z" fill="#fff" stroke="#000" stroke-width="3"/>
+    <path d="M6 -14 L52 -14 Q56 52 24 70 Q14 74 6 76 Q30 40 6 -14Z" fill="url(#htk)" opacity=".55"/>
+    <ellipse cx="-22" cy="4" rx="16" ry="18" fill="url(#htk)" opacity=".9"/><ellipse cx="22" cy="4" rx="16" ry="18" fill="url(#htk)" opacity=".9"/>
+    <circle cx="-22" cy="4" r="12" fill="#fff" stroke="#000" stroke-width="2.5"/><circle cx="22" cy="4" r="12" fill="#fff" stroke="#000" stroke-width="2.5"/>
+    <circle cx="-19" cy="6" r="3" fill="#000"/><circle cx="25" cy="2" r="3" fill="#000"/>
+    <path d="M-40 -16 Q-24 -32 -6 -18M6 -18 Q24 -34 40 -14" stroke="#000" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M0 6 L-12 34 Q-2 40 6 34" stroke="#000" stroke-width="3" fill="#fff" stroke-linejoin="round"/>
+    <path d="M-34 42 Q0 70 36 40 Q28 62 0 64 Q-26 62 -34 42Z" fill="#000"/>
+    <path d="M-8 46 h8 v12 h-8z M1 46 h8 v12 h-8z" fill="#fff" stroke="#000" stroke-width="1.5"/>
+    <path d="M-26 46 l6 6 l6 -5M14 47 l6 5 l6 -6" stroke="#fff" stroke-width="2" fill="none"/>
+    <path d="M-40 34 q-6 6 -4 14M40 32 q6 6 4 14" stroke="#000" stroke-width="1.8" fill="none"/>
+    <!-- цилиндр -->
+    <ellipse cx="0" cy="-16" rx="100" ry="18" fill="#000" stroke="#fff" stroke-width="3"/>
+    <path d="M-56 -20 L-70 -190 Q0 -206 70 -190 L56 -20 Q0 -10 -56 -20Z" fill="#000" stroke="#fff" stroke-width="3"/>
+    <path d="M14 -200 Q50 -198 70 -190 L56 -20 Q40 -16 26 -15Z" fill="url(#hatch)" opacity=".25"/>
+    <path d="M-58 -46 Q0 -34 58 -46 L57 -24 Q0 -14 -57 -24Z" fill="${RED}"/>
+    <path d="M-64 -150 q-2 40 4 90" stroke="#fff" stroke-width="2" fill="none" opacity=".7"/>
+    <g transform="rotate(-10 30 -80)"><rect x="-2" y="-118" width="64" height="74" fill="#fff" stroke="#000" stroke-width="3"/>
+      <text x="30" y="-98" ${F0} font-size="9" text-anchor="middle" fill="#000">In this style</text><text x="30" y="-62" ${F0} font-size="26" text-anchor="middle" fill="${RED}">10/6</text></g>
+    </g>`;
   }
 
   function hatter() {
     return svg(`
     <rect width="800" height="420" fill="${RED}"/>
     <rect width="800" height="420" fill="url(#htk)" opacity=".3"/>
-    <path d="M250 420q10 -110 150 -120q140 10 150 120z" fill="#000"/>
-    <path d="M360 318l40 34l40 -34l14 40l-54 22l-54 -22z" fill="#fff"/>
-    <path d="M330 220q-6 96 70 104q76 -8 70 -104z" fill="#fff"/>
-    <path d="M400 222q70 0 70 0q4 92 -70 102z" fill="url(#hatchk)" opacity=".6"/>
-    <circle cx="372" cy="250" r="12" fill="#000"/><circle cx="432" cy="250" r="12" fill="#000"/><circle cx="375" cy="247" r="4" fill="#fff"/><circle cx="435" cy="247" r="4" fill="#fff"/>
-    <path d="M356 282q44 34 92 0q-6 30 -46 30q-40 0 -46 -30z" fill="#000"/><rect x="388" y="286" width="12" height="14" fill="#fff"/><rect x="402" y="286" width="12" height="14" fill="#fff"/>
-    <path d="M322 224q-24 16 -18 46q14 -4 22 -22zM478 224q24 16 18 46q-14 -4 -22 -22z" fill="#fff"/>
-    <ellipse cx="400" cy="214" rx="170" ry="26" fill="#000" stroke="#fff" stroke-width="4"/>
-    <path d="M300 208L280 30Q400 0 520 30L500 208Q400 228 300 208z" fill="#000" stroke="#fff" stroke-width="4"/>
-    <path d="M294 150Q400 174 506 150L502 196Q400 216 298 196z" fill="#fff"/>
-    <g transform="rotate(-10 450 120)"><rect x="410" y="70" width="84" height="96" fill="#fff" stroke="#000" stroke-width="4"/><text x="452" y="100" ${F} font-size="13" text-anchor="middle" fill="#000">In this style</text><text x="452" y="146" ${F} font-size="38" text-anchor="middle" fill="${RED}">10/6</text></g>
-    ${cup(160, 330, 2.4)}${cup(650, 340, 2)}
+    <g stroke="#000" stroke-width="2">${[[90, 70, -20, '♥'], [690, 90, 18, '♠'], [130, 300, 12, '♦'], [700, 300, -14, '♣'], [240, 40, 30, '♥']].map(([x, y, r, su]) => `<g transform="rotate(${r} ${x} ${y})"><rect x="${x - 26}" y="${y - 36}" width="52" height="72" rx="5" fill="#fff"/><text x="${x}" y="${y + 12}" ${F0} font-size="34" text-anchor="middle" fill="${su === '♥' || su === '♦' ? RED : '#000'}" stroke="none">${su}</text></g>`).join('')}</g>
+    ${cup(150, 360, 2.2)}<path d="M140 320q10 -20 0 -40q-10 -20 0 -40M160 318q10 -16 2 -34" stroke="#fff" stroke-width="3" fill="none" opacity=".8"/>
+    ${hatterFig(420, 236, 1.02)}
     `, '0 0 800 420');
   }
 
-  window.Art = { c2s1, c2s2, c2s3, c2s4, splash2, park, hatter, scene1, scene2, scene3, scene4, batman, splash, basement, capture, gordon, clock, RED };
+  window.Art = { body, wallClock, marker, svg, calHead, gordonFig, hatterFig, c2s1, c2s2, c2s3, c2s4, splash2, park, hatter, scene1, scene2, scene3, scene4, batman, splash, basement, capture, gordon, clock, RED };
 })();

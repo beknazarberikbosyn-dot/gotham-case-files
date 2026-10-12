@@ -78,6 +78,20 @@
   }
 
   const BATGLYPH = ['X..X.X..X', 'XXXXXXXXX', '.XXXXXXX.', '..X.X.X..'];
+  const BATBIG = [
+    '.........X.X.........',
+    'XX.......XXX.......XX',
+    '.XXXX...XXXXX...XXXX.',
+    '..XXXXXXXXXXXXXXXXX..',
+    '..XXXXXXXXXXXXXXXXX..',
+    '...XXX.XXXXXXX.XXX...',
+    '....X...XXXXX...X....',
+    '.........XXX.........',
+    '..........X..........'];
+  function ellipse(c, cx, cy, rx, ry, col) {
+    c.fillStyle = col;
+    for (let y = -ry; y <= ry; y++) { const w = Math.round(rx * Math.sqrt(1 - (y * y) / (ry * ry))); c.fillRect(cx - w, cy + y, w * 2 + 1, 1); }
+  }
   function glyph(c, x, y, col, s) {
     c.fillStyle = col; s = s || 1;
     BATGLYPH.forEach((row, r) => { for (let i = 0; i < row.length; i++) if (row[i] === 'X') c.fillRect(x + i * s, y + r * s, s, s); });
@@ -93,38 +107,47 @@
       R('#ff6a00', -f, -11, f, 4); R('#ffd23f', -Math.round(f * 0.6), -10, Math.round(f * 0.6), 2);
       R('#fff', -Math.min(3, f), -10, Math.min(3, f), 2);
     }
-    // плавники
-    R('#07080d', 0, -24, 3, 14); R('#07080d', 3, -21, 4, 11); R('#07080d', 7, -18, 5, 8); R('#07080d', 12, -15, 6, 5);
-    R('#27345c', 0, -24, 1, 14);
-    // корпус
-    R('#07080d', 2, -13, 88, 8); R('#07080d', 84, -12, 10, 6); R('#07080d', 92, -10, 5, 4);
-    R('#11141f', 4, -6, 90, 3);
-    R('#27345c', 14, -13, 66, 1); R('#3d4f85', 20, -13, 26, 1);
-    R('#1a1d2b', 2, -9, 5, 3); // сопло
+    const K = '#07080d', D = '#11141f', B1 = '#27345c', B2 = '#3d4f85', B3 = '#6f86c7';
+    // плавники-крылья с подсветкой кромки и красными стоп-огнями
+    R(K, 0, -25, 3, 15); R(K, 3, -22, 4, 12); R(K, 7, -19, 6, 9); R(K, 13, -16, 7, 6);
+    R(B1, 0, -25, 1, 15); R(B2, 1, -25, 2, 1); R(B1, 3, -22, 4, 1); R(B1, 7, -19, 6, 1);
+    R('#c81e2b', 1, -12, 2, 3); R('#ff5a66', 1, -12, 1, 1);
+    // корпус: длинный капот, сужение к носу
+    R(K, 2, -14, 86, 9); R(K, 84, -13, 10, 7); R(K, 92, -11, 6, 5); R(K, 97, -9, 3, 3);
+    R(D, 4, -6, 92, 3); R('#05060a', 6, -3, 88, 1);
+    R(B1, 14, -14, 70, 1); R(B2, 22, -14, 24, 1); R(B3, 28, -14, 8, 1);
+    R(B1, 84, -13, 10, 1); R(B2, 92, -11, 5, 1);
+    // воздухозаборник и панели
+    R('#1a1d2b', 66, -11, 12, 3); R('#2d3247', 67, -10, 10, 1);
+    R(B1, 26, -9, 1, 4); R(B1, 82, -9, 1, 4);
+    R('#1a1d2b', 2, -10, 5, 4); R('#3a2a1a', 3, -9, 3, 2); // сопло
     // эмблема на борту
-    R('#f4c430', 58, -10, 7, 3); R('#07080d', 60, -10, 1, 1); R('#07080d', 62, -10, 1, 1); R('#07080d', 61, -8, 1, 1);
-    // кабина
-    R('#0e1626', 32, -18, 30, 5); R('#27345c', 60, -18, 3, 5); R('#3d4f85', 62, -17, 2, 4);
+    R('#f4c430', 40, -10, 9, 4); R(K, 41, -10, 1, 1); R(K, 44, -10, 1, 1); R(K, 47, -10, 1, 1); R(K, 43, -8, 3, 1); R(K, 44, -7, 1, 1);
+    // кабина: стекло с бликом
+    R('#0e1626', 32, -19, 30, 6); R(B1, 33, -19, 28, 1); R(B3, 56, -18, 2, 1); R(B2, 58, -17, 2, 1); R(B2, 60, -16, 2, 1);
+    R(B1, 62, -19, 2, 6); R(B2, 63, -18, 1, 4);
     if (crew) {
       // Робин (сзади)
-      R('#15110f', 36, -24, 6, 3); R('#e2ab84', 37, -21, 5, 3); R('#0c3b22', 38, -21, 4, 1);
-      R('#c81e2b', 36, -18, 7, 2); R('#f4c430', 35, -18, 1, 2);
+      R('#15110f', 36, -25, 6, 3); R('#15110f', 35, -24, 1, 2); R('#e2ab84', 37, -22, 5, 3); R('#0c3b22', 37, -22, 5, 1);
+      R('#c81e2b', 36, -19, 7, 2); R('#f4c430', 35, -19, 1, 2);
       // Бэтмен (за рулём)
-      R('#07080d', 47, -27, 1, 3); R('#07080d', 52, -27, 1, 3);
-      R('#07080d', 47, -25, 6, 5); R('#fff', 51, -23, 2, 1); R('#e2ab84', 49, -21, 4, 2);
-      R('#07080d', 45, -19, 9, 3);
+      R(K, 47, -28, 1, 3); R(K, 52, -28, 1, 3);
+      R(K, 47, -26, 6, 6); R('#fff', 49, -24, 1, 1); R('#fff', 51, -24, 1, 1); R('#e2ab84', 48, -21, 5, 2); R(K, 49, -20, 3, 1);
+      R(K, 45, -20, 10, 3); R(B1, 45, -20, 1, 2);
     }
-    // колёса
+    // колёса: шины, диски со спицами
     [18, 74].forEach(wx => {
-      R('#000', wx - 5, -8, 10, 8); R('#000', wx - 6, -6, 12, 4); R('#000', wx - 3, -9, 6, 10);
-      R('#565c6e', wx - 2, -6, 4, 4);
+      R('#000', wx - 5, -9, 10, 9); R('#000', wx - 6, -7, 12, 5); R('#000', wx - 3, -10, 6, 11);
+      R('#2d3247', wx - 3, -7, 6, 5); R('#565c6e', wx - 2, -6, 4, 3);
       c.fillStyle = '#c9ccd6';
       const ph = Math.floor(t / 2) % 4;
-      const sp = [[-2, -6], [1, -6], [1, -3], [-2, -3]][ph];
-      c.fillRect(x + wx + sp[0], y + sp[1], 1, 1);
+      const sp = [[-2, -7], [1, -7], [1, -3], [-2, -3]][ph];
+      c.fillRect(x + wx + sp[0], y + sp[1], 1, 1); c.fillRect(x + wx - sp[0] - 1, y - 10 - sp[1], 1, 1);
+      R('#f4c430', wx, -5, 1, 1);
     });
-    // фара
-    R('#fff2a8', 95, -9, 2, 2);
+    // фара и подсветка днища
+    R('#fff2a8', 95, -9, 3, 2); R('#fff', 97, -9, 1, 1);
+    R('rgba(90,120,255,.35)', 8, -1, 84, 1);
   }
 
   /* ---------- дорога ---------- */
@@ -148,7 +171,7 @@
     const r = rng(99);
     const drops = Array.from({ length: 110 }, () => ({ x: r() * (W + 80), y: r() * H, v: 3 + r() * 3 }));
     const streaks = Array.from({ length: 26 }, () => ({ x: r() * W, y: 131 + r() * 46, w: 4 + r() * 16, a: 0.04 + r() * 0.1 }));
-    let off = 0, speed = 2.2, target = 2.2, frame = 0, raf = 0, carX = 92, flash = 0, white = 0, boostT = -1, done = null;
+    let boltX = 80, off = 0, speed = 2.2, target = 2.2, frame = 0, raf = 0, carX = 92, flash = 0, white = 0, boostT = -1, done = null;
     let last = performance.now(), acc = 0;
 
     function layer(sk, par, base, col, wcol) {
@@ -158,9 +181,14 @@
         if (x > W) return;
         x = Math.round(x);
         c.fillStyle = col; c.fillRect(x, base - b.h, b.w, b.h);
-        if (b.spire) { c.fillRect(x + (b.w >> 1), base - b.h - 7, 1, 7); c.fillRect(x + (b.w >> 1) - 1, base - b.h - 3, 3, 3); }
+        const top = base - b.h;
+        if (b.spire) { c.fillRect(x + (b.w >> 1), top - 7, 1, 7); c.fillRect(x + (b.w >> 1) - 1, top - 3, 3, 3); if (par > 0.2 && (frame >> 4) % 3 === (b.x % 3)) { c.fillStyle = '#ff3b4a'; c.fillRect(x + (b.w >> 1), top - 8, 1, 1); c.fillStyle = col; } }
+        else if (par > 0.2 && b.w > 16 && b.x % 3 === 0) { c.fillRect(x + 3, top - 7, 7, 5); c.fillRect(x + 4, top - 2, 1, 2); c.fillRect(x + 8, top - 2, 1, 2); c.fillRect(x + 2, top - 8, 9, 1); }
+        else if (par > 0.2 && b.x % 3 === 1) { c.fillRect(x + 1, top - 2, b.w - 2, 2); c.fillRect(x + b.w - 4, top - 4, 2, 2); }
+        c.fillStyle = col === '#0b0e22' ? '#1b2045' : '#262d5c'; c.fillRect(x, top, b.w, 1);
         c.fillStyle = wcol;
-        b.wins.forEach(w => c.fillRect(x + w[0], base - b.h + w[1], 1, 2));
+        b.wins.forEach((w, k) => { if (par > 0.2 && (k * 7 + b.x) % 23 === (frame >> 5) % 23) return; c.fillRect(x + w[0], top + w[1], 1, 2); });
+        if (par > 0.2 && b.x % 5 === 2 && b.h > 34) { const on = (frame >> 3) % 9 !== 0; c.fillStyle = on ? '#d0142c' : '#4a0c16'; c.fillRect(x + 2, top + 10, b.w - 4, 3); c.fillStyle = on ? '#ff8a96' : '#4a0c16'; c.fillRect(x + 3, top + 11, b.w - 6, 1); }
       });
     }
 
@@ -175,21 +203,46 @@
         if (boostT > 105 && done) { const d = done; done = null; d(); }
       }
       if (flash > 0) flash -= 0.08;
-      else if (Math.random() < 0.006 && boostT < 0) flash = 1;
+      else if (Math.random() < 0.006 && boostT < 0) { flash = 1; boostT < 0 && (boltX = 30 + Math.floor(Math.random() * 140)); }
     }
 
     function draw() {
       // небо
       const bands = ['#05060f', '#070917', '#0a0d20', '#0d1129', '#111633'];
       bands.forEach((b, i) => { c.fillStyle = b; c.fillRect(0, i * 25, W, 26); });
-      // тучи
-      c.fillStyle = '#161b3a';
-      for (let i = 0; i < 6; i++) { const cx = ((i * 71 - off * 0.03) % 400 + 400) % 400 - 50; c.fillRect(cx, 14 + (i % 3) * 9, 54, 5); c.fillRect(cx + 8, 11 + (i % 3) * 9, 34, 4); }
-      // бэт-сигнал
-      c.fillStyle = 'rgba(255,240,170,.07)';
-      c.beginPath(); c.moveTo(214, 112); c.lineTo(226, 26); c.lineTo(250, 30); c.closePath(); c.fill();
-      c.fillStyle = 'rgba(255,240,170,.55)'; c.fillRect(228, 22, 20, 11); c.fillRect(226, 24, 24, 7);
-      glyph(c, 234, 25, '#0a0d20');
+      // луна за тучами
+      ellipse(c, 46, 30, 13, 13, '#c9cbe0'); ellipse(c, 49, 27, 11, 11, '#dfe0ee');
+      c.fillStyle = '#a9abc4'; c.fillRect(42, 26, 3, 2); c.fillRect(50, 33, 4, 3); c.fillRect(46, 37, 2, 2);
+      // тучи: три слоя, подсвечены сигналом
+      const sigX = 236, sigY = 30;
+      [[0.015, '#131833', 5, 8], [0.03, '#181e3e', 4, 18], [0.05, '#1d2448', 3, 30]].forEach(([par, col, n, y0], L) => {
+        for (let i = 0; i < n + 3; i++) {
+          const cx = ((i * 97 + L * 41 - off * par) % 440 + 440) % 440 - 60, cy = y0 + ((i * 13) % 3) * 6;
+          const near = Math.max(0, 1 - Math.hypot(cx + 30 - sigX, cy - sigY) / 90);
+          c.fillStyle = col; c.fillRect(cx, cy, 64, 6); c.fillRect(cx + 10, cy - 4, 40, 5); c.fillRect(cx + 22, cy - 7, 18, 4);
+          if (near > 0) { c.fillStyle = 'rgba(255,236,160,' + (near * 0.35).toFixed(2) + ')'; c.fillRect(cx + 10, cy - 4, 40, 1); c.fillRect(cx + 22, cy - 7, 18, 1); c.fillRect(cx, cy, 64, 1); }
+        }
+      });
+      // штаб полиции с прожектором — очень далеко, не движется
+      c.fillStyle = '#151a38'; c.fillRect(196, 70, 22, 52); c.fillRect(200, 62, 14, 8); c.fillRect(205, 56, 4, 6);
+      c.fillStyle = '#3d4677'; for (let wy = 74; wy < 118; wy += 5) { c.fillRect(199, wy, 2, 2); c.fillRect(205, wy, 2, 2); c.fillRect(211, wy, 2, 2); }
+      c.fillStyle = '#c9cbe0'; c.fillRect(204, 54, 6, 3);
+      // луч: мерцающий конус от прожектора к тучам
+      const fl = 0.85 + Math.sin(frame * 0.21) * 0.08 + (Math.random() < 0.04 ? -0.25 : 0);
+      const gr = c.createLinearGradient(207, 55, sigX, sigY);
+      gr.addColorStop(0, 'rgba(255,244,190,' + (0.42 * fl).toFixed(2) + ')'); gr.addColorStop(1, 'rgba(255,240,170,' + (0.1 * fl).toFixed(2) + ')');
+      c.fillStyle = gr;
+      c.beginPath(); c.moveTo(205, 55); c.lineTo(210, 55); c.lineTo(sigX + 22, sigY + 6); c.lineTo(sigX - 22, sigY + 6); c.closePath(); c.fill();
+      // пятно на тучах
+      ellipse(c, sigX, sigY, 42, 19, 'rgba(255,240,170,' + (0.07 * fl).toFixed(2) + ')');
+      ellipse(c, sigX, sigY, 33, 15, 'rgba(255,240,170,' + (0.16 * fl).toFixed(2) + ')');
+      ellipse(c, sigX, sigY, 26, 12, 'rgba(255,246,196,' + (0.82 * fl).toFixed(2) + ')');
+      ellipse(c, sigX, sigY, 24, 11, 'rgba(255,250,222,' + (0.9 * fl).toFixed(2) + ')');
+      c.fillStyle = '#0a0d20';
+      BATBIG.forEach((row, r) => { for (let i = 0; i < row.length; i++) if (row[i] === 'X') c.fillRect(sigX - 10 + i, sigY - 4 + r, 1, 1); });
+      // пылинки и капли в луче
+      c.fillStyle = 'rgba(255,250,220,.6)';
+      for (let i = 0; i < 6; i++) { const t = ((frame * 0.7 + i * 23) % 60) / 60; c.fillRect(Math.round(207 + (sigX - 207) * t + Math.sin(i * 3 + frame * 0.05) * 6 * t), Math.round(55 + (sigY - 55) * t), 1, 1); }
       layer(far, 0.1, 122, '#1b2147', '#57608f');
       layer(near, 0.28, 122, '#0b0e22', '#f0c33c');
       // тротуар и дорога
@@ -237,7 +290,10 @@
         if (p.x < -4) p.x += W + 80;
         c.fillRect(Math.round(p.x), Math.round(p.y), 1, 3);
       });
-      if (flash > 0) { c.fillStyle = 'rgba(210,225,255,' + flash * 0.35 + ')'; c.fillRect(0, 0, W, H); }
+      if (flash > 0) {
+        c.fillStyle = 'rgba(210,225,255,' + flash * 0.35 + ')'; c.fillRect(0, 0, W, H);
+        if (flash > 0.5) { c.fillStyle = '#eef2ff'; let bx = boltX, by = 0; while (by < 70) { const nx = bx + ((by * 7 + boltX) % 5) - 2; c.fillRect(nx, by, 1, 4); bx = nx; by += 4; if (by === 28) c.fillRect(bx, by, 6, 1); } }
+      }
       if (white > 0) { c.fillStyle = 'rgba(255,255,255,' + white + ')'; c.fillRect(0, 0, W, H); }
     }
 

@@ -9,6 +9,23 @@
   };
   const DIFF_RANK = { easy: 0, medium: 1, hard: 2 };
   let C, TOTAL, st, diff = 'medium', roadCtl, caveCtl, current = null;
+  const sfx = n => { if (window.Sound) Sound.sfx(n); };
+
+  /* ---------- настройки ---------- */
+  const SET_KEY = 'gcf_settings';
+  const settings = Object.assign({ music: 60, sfx: 70, bright: 100, contrast: 100, text: 'normal', rain: true, big: false, calm: false },
+    (() => { try { return JSON.parse(localStorage.getItem(SET_KEY)) || {}; } catch (e) { return {}; } })());
+  const TEXT_SPEED = { instant: 0, fast: 0.4, normal: 1, slow: 1.9 };
+  function applySettings() {
+    const r = document.documentElement.style;
+    r.setProperty('--bright', settings.bright / 100);
+    r.setProperty('--contrast', settings.contrast / 100);
+    document.body.classList.toggle('no-rain', !settings.rain);
+    document.body.classList.toggle('big-text', settings.big);
+    document.body.classList.toggle('calm', settings.calm);
+    if (window.Sound) { Sound.setVolume('music', settings.music / 100); Sound.setVolume('sfx', settings.sfx / 100); }
+    try { localStorage.setItem(SET_KEY, JSON.stringify(settings)); } catch (e) { /* не страшно */ }
+  }
 
   const store = {
     get(id) { try { return JSON.parse(localStorage.getItem('gcf_best_' + id)) || null; } catch (e) { return null; } },
@@ -25,7 +42,7 @@
   /* ---------- печатная машинка ---------- */
   function type(node, text, speed) {
     if (node._t) clearInterval(node._t);
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { node.textContent = text; return; }
+    if (settings.text === 'instant' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) { node.textContent = text; node._full = text; return; }
     let i = 0;
     node.textContent = '';
     node._full = text;
@@ -33,7 +50,7 @@
       i += 2;
       node.textContent = text.slice(0, i);
       if (i >= text.length) { clearInterval(node._t); node._t = null; }
-    }, speed || 16);
+    }, (speed || 16) * TEXT_SPEED[settings.text]);
   }
   function finishType(node) { if (node._t) { clearInterval(node._t); node._t = null; node.textContent = node._full; return true; } return false; }
 
@@ -69,6 +86,7 @@
     }
     $('storyNext').onclick = () => {
       if (finishType($('storyText'))) return;
+      sfx('page');
       i++;
       if (i >= pages.length) { box.hidden = true; onEnd(); } else render();
     };
@@ -77,12 +95,85 @@
   }
 
   /* ---------- сцена ---------- */
+  const sceneDone = i => C.scenes[i].clues.every(c => st.solved[c.id]);
+  const allDone = () => C.scenes.every((_, i) => sceneDone(i));
+  const shortName = sc => sc.loc.split(' · ')[1] || sc.loc;
+
   function hud() {
-    const sc = C.scenes[st.scene];
-    const done = sc.clues.filter(c => st.solved[c.id]).length;
-    $('hudPlace').textContent = (st.scene + 1) + '/' + C.scenes.length;
-    $('hudClues').textContent = done + '/' + sc.clues.length;
+    const solved = Object.keys(st.solved).length;
+    $('hudClues').textContent = solved + '/' + TOTAL;
     $('hudHints').textContent = st.hintsUsed;
+    $('hudDiff').textContent = DIFFS[diff].name;
+    renderPlaces();
+    updateNext();
+  }
+
+  // карта дела: места можно осматривать в любом порядке
+  function renderPlaces() {
+    const box = $('places');
+    box.innerHTML = '';
+    C.scenes.forEach((sc, i) => {
+      const done = sc.clues.filter(c => st.solved[c.id]).length, all = sc.clues.length;
+      const b = btn('place' + (i === st.scene ? ' cur' : '') + (done === all ? ' done' : ''), '', () => goScene(i));
+      b.innerHTML = `<b>${i + 1}</b><span>${shortName(sc)}</span><i>${done === all ? '✓' : done + '/' + all}</i>`;
+      b.setAttribute('aria-label', `Место ${i + 1}: ${shortName(sc)}, улик найдено ${done} из ${all}`);
+      if (i === st.scene) b.setAttribute('aria-current', 'true');
+      box.appendChild(b);
+    });
+    const fin = allDone();
+    const f = btn('place final' + (fin ? ' open' : ''), '', () => { if (fin) toFinale(); });
+    f.innerHTML = `<b>★</b><span>${fin ? 'ЛОГОВО' : 'ЛОГОВО'}</span><i>${fin ? 'открыто' : '🔒'}</i>`;
+    f.disabled = !fin;
+    f.title = fin ? 'Все улики собраны' : 'Откроется, когда соберёшь все улики во всех местах';
+    box.appendChild(f);
+  }
+
+  function nextTarget() {
+    if (allDone()) return { label: 'К ЛОГОВУ →', fn: toFinale };
+    const n = C.scenes.length;
+    for (let k = 1; k <= n; k++) { const i = (st.scene + k) % n; if (!sceneDone(i)) return { label: `МЕСТО ${i + 1} →`, fn: () => goScene(i) }; }
+    return null;
+  }
+
+  function updateNext() {
+    const b = $('nextBtn');
+    const t = sceneDone(st.scene) ? nextTarget() : null;
+    b.hidden = !t;
+    if (t) { b.textContent = t.label; b.onclick = () => { batHide(); t.fn(); }; }
+  }
+
+  function goScene(i) {
+    if (i === st.scene || st.moving) return;
+    st.moving = true;
+    batHide();
+    sfx('whoosh');
+    Pixel.wipe($('wipe'), () => { loadScene(i); st.moving = false; });
+  }
+
+  function toFinale() {
+    if (st.finished) return;
+    st.finished = true;
+    batHide();
+    finale();
+  }
+
+  function renderNotes() {
+    const ol = $('notes');
+    ol.innerHTML = '';
+    C.scenes.forEach(sc => {
+      const got = sc.clues.filter(c => st.solved[c.id]);
+      if (!got.length) return;
+      const h = el('li', 'place');
+      h.textContent = sc.loc.split(' · ').slice(0, 2).join(' · ');
+      ol.appendChild(h);
+      got.forEach(c => {
+        const li = el('li', st.helped[c.id] ? 'helped' : '');
+        li.innerHTML = `<b>${c.name}</b>`;
+        li.appendChild(document.createTextNode(c.done));
+        ol.appendChild(li);
+      });
+    });
+    $('notesEmpty').hidden = !!ol.children.length;
   }
 
   function loadScene(i) {
@@ -91,31 +182,17 @@
     $('loc').textContent = sc.loc;
     type($('narr'), sc.narr, 12);
     $('scene').innerHTML = Art[sc.art]() + sc.clues.map(c =>
-      `<button class="hot" data-id="${c.id}" aria-label="${c.name}" style="left:${c.hot.x}%;top:${c.hot.y}%;width:${c.hot.w}%;height:${c.hot.h}%"><span class="hot-label">${c.name}</span></button>`).join('');
+      `<button class="hot${st.solved[c.id] ? ' solved' : ''}" data-id="${c.id}" aria-label="${c.name}" style="left:${c.hot.x}%;top:${c.hot.y}%;width:${c.hot.w}%;height:${c.hot.h}%"><span class="hot-label">${c.name}</span></button>`).join('');
     $('scene').querySelectorAll('.hot').forEach(b => b.onclick = () => openClue(sc.clues.find(c => c.id === b.dataset.id)));
-    const li = el('li', 'place');
-    li.textContent = sc.loc.split(' · ').slice(0, 2).join(' · ');
-    $('notes').appendChild(li);
-    $('nextBtn').hidden = true;
     $('case').scrollTop = 0;
     hud();
   }
 
   function sceneComplete() {
     const sc = C.scenes[st.scene];
-    const last = st.scene === C.scenes.length - 1;
-    const b = $('nextBtn');
-    b.textContent = last ? 'К ЛОГОВУ →' : 'СЛЕДУЮЩЕЕ МЕСТО →';
-    b.hidden = false;
-    let gone = false;
-    b.onclick = () => {
-      if (gone) return;
-      gone = true;
-      batHide();
-      if (last) return finale();
-      Pixel.wipe($('wipe'), () => loadScene(st.scene + 1));
-    };
-    batSay(sc.outro, 'БЭТМЕН', { label: b.textContent, fn: b.onclick });
+    st.announced[st.scene] = true;
+    const t = nextTarget();
+    batSay(sc.outro, 'БЭТМЕН', t ? { label: t.label, fn: () => { batHide(); t.fn(); } } : null);
   }
 
   /* ================= ТИПЫ ЗАГАДОК ================= */
@@ -165,7 +242,7 @@
       const box = el('div', 'wheels');
       reels.forEach((syms, i) => {
         const r = el('div', 'reel'), face = el('div', 'reel-face');
-        const set = d => { pos[i] = mod(pos[i] + d, syms.length); face.textContent = syms[pos[i]]; face.classList.remove('tick'); void face.offsetWidth; face.classList.add('tick'); };
+        const set = d => { pos[i] = mod(pos[i] + d, syms.length); face.textContent = syms[pos[i]]; face.classList.remove('tick'); void face.offsetWidth; face.classList.add('tick'); sfx('tick'); };
         const up = btn('reel-b', '▲', () => set(-1)), dn = btn('reel-b', '▼', () => set(1));
         up.setAttribute('aria-label', 'Барабан ' + (i + 1) + ' вверх'); dn.setAttribute('aria-label', 'Барабан ' + (i + 1) + ' вниз');
         face.textContent = syms[0];
@@ -198,6 +275,7 @@
         pos += d;
         const dir = d > 0 ? 'R' : 'L', n = mod(pos, N), last = runs[runs.length - 1];
         if (last && last.dir === dir) last.n = n; else runs.push({ dir, n });
+        sfx('tick');
         draw();
       };
       const row = el('div', 'mech-row');
@@ -230,8 +308,8 @@
         const l = btn('btn ghost', '↺'), r = btn('btn ghost', '↻');
         l.setAttribute('aria-label', names[i] + ' влево'); r.setAttribute('aria-label', names[i] + ' вправо');
         row.append(l, r); d.appendChild(row); wrap.appendChild(d);
-        hold(l, () => { sh[i] = mod(sh[i] - 1, 33); draw(); });
-        hold(r, () => { sh[i] = mod(sh[i] + 1, 33); draw(); });
+        hold(l, () => { sh[i] = mod(sh[i] - 1, 33); sfx('tick'); draw(); });
+        hold(r, () => { sh[i] = mod(sh[i] + 1, 33); sfx('tick'); draw(); });
       });
       A.append(wrap, el('div', 'order-h', 'ЧТО ЧИТАЕТСЯ СЕЙЧАС'), out);
       draw();
@@ -256,6 +334,7 @@
         const r = cv.getBoundingClientRect();
         g.globalCompositeOperation = 'destination-out';
         g.fillStyle = 'rgba(0,0,0,.55)';
+        if (moves % 5 === 0) sfx('scrape');
         g.beginPath(); g.arc((e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height, 20, 0, 7); g.fill();
         if (++moves % 12 === 0) {
           const d = g.getImageData(0, 0, cv.width, cv.height).data;
@@ -359,6 +438,7 @@
       function spin(to) {
         return new Promise(res => {
           busy = true;
+          sfx('clunk');
           const from = shown, t0 = performance.now(), dur = 650 * Math.max(1, Math.abs(to - from));
           const f = now => {
             const p = Math.min(1, (now - t0) / dur), e = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
@@ -408,7 +488,7 @@
       v.rows.forEach((row, r) => {
         if (v.labels) g.appendChild(el('span', 'grid-l', v.labels.rows[r]));
         row.forEach((cell, c) => {
-          const b = btn('cell' + ((r + c) % 2 ? ' dark' : ''), cell || '', () => { g.querySelectorAll('.cell').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); sel = [r, c]; });
+          const b = btn('cell' + ((r + c) % 2 ? ' dark' : ''), cell || '', () => { g.querySelectorAll('.cell').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); sel = [r, c]; sfx('click'); });
           b.setAttribute('aria-label', v.labels ? v.labels.cols[c] + v.labels.rows[r] + (cell ? ' ' + cell : ' пусто') : `ряд ${r + 1}, место ${c + 1}`);
           if (v.black && v.black.includes(cell)) b.classList.add('bk');
           g.appendChild(b);
@@ -433,7 +513,7 @@
         w.querySelector('.clock-read').textContent = (h === 0 ? 12 : h) + ':' + String(mm % 60).padStart(2, '0');
       };
       const row = el('div', 'mech-row');
-      [['−1 ч', -60], ['−5 мин', -5], ['−1 мин', -1], ['+1 мин', 1], ['+5 мин', 5], ['+1 ч', 60]].forEach(([t, d]) => { const b = btn('btn ghost', t); row.appendChild(b); hold(b, () => { m += d; draw(); }); });
+      [['−1 ч', -60], ['−5 мин', -5], ['−1 мин', -1], ['+1 мин', 1], ['+5 мин', 5], ['+1 ч', 60]].forEach(([t, d]) => { const b = btn('btn ghost', t); row.appendChild(b); hold(b, () => { m += d; sfx('tick'); draw(); }); });
       A.append(w, row);
       draw();
       return { empty: () => false, check: () => mod(m, 720) === mod(v.target, 720) };
@@ -452,7 +532,7 @@
           const it = place[s.id] != null ? v.items.find(i => i.id === place[s.id]) : null;
           const b = btn('slot' + (it ? ' full' : '') + (fixed.includes(s.id) ? ' fixed' : ''), it ? it.label : (s.label || ''), () => {
             if (fixed.includes(s.id)) return;
-            if (pick != null) { place[s.id] = pick; pick = null; } else if (it) delete place[s.id];
+            if (pick != null) { place[s.id] = pick; pick = null; sfx('click'); } else if (it) delete place[s.id];
             render();
           });
           b.setAttribute('aria-label', (s.name || s.label || 'место') + ': ' + (it ? it.label : 'пусто'));
@@ -460,7 +540,7 @@
           board.appendChild(b);
         });
         tray.replaceChildren(...v.items.filter(i => !used().includes(i.id)).map(i => {
-          const b = btn('chip' + (pick === i.id ? ' sel' : ''), i.label, () => { pick = pick === i.id ? null : i.id; render(); });
+          const b = btn('chip' + (pick === i.id ? ' sel' : ''), i.label, () => { pick = pick === i.id ? null : i.id; sfx('click'); render(); });
           return b;
         }));
         if (!tray.children.length) tray.appendChild(el('span', 'dim', 'Всё расставлено. Нажми на занятое место, чтобы снять.'));
@@ -553,6 +633,7 @@
     $('mHint').hidden = solved;
     hintLabel();
     $('modal').hidden = false;
+    document.body.classList.add('modal-open');
     $('modal').scrollTop = 0;
     document.querySelector('.m-body').scrollTop = 0;
     const inp = A.querySelector('input[type=text]');
@@ -560,6 +641,7 @@
   }
 
   function wrong(msg) {
+    sfx('wrong');
     st.wrongN = (st.wrongN || 0) + 1;
     $('mFeedback').textContent = 'Неверно.';
     batSay(msg || C.wrong[st.wrongN % C.wrong.length], 'БЭТМЕН');
@@ -589,11 +671,8 @@
     $('mCheck').hidden = true; $('mHint').hidden = true;
     batHide();
     document.querySelector(`.hot[data-id="${clue.id}"]`).classList.add('solved');
-    $('notesEmpty').hidden = true;
-    const li = el('li', st.helped[clue.id] ? 'helped' : '');
-    li.innerHTML = `<b>${clue.name}</b>`;
-    li.appendChild(document.createTextNode(clue.done));
-    $('notes').appendChild(li);
+    renderNotes();
+    sfx('ok');
     hud();
     $('mConclusion').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
@@ -608,16 +687,18 @@
     let lv = st.hintLevel[clue.id] || 0;
     if (lv < hints.length) { lv++; st.hintLevel[clue.id] = lv; st.hintsUsed++; }
     st.helped[clue.id] = true;
+    sfx('hint');
     batSay(hints[lv - 1], `ПОДСКАЗКА ${lv}/3`);
     hintLabel(); hud();
   }
 
   function closeModal() {
     $('modal').hidden = true;
+    document.body.classList.remove('modal-open');
     if (current) { current.cleanup.forEach(f => f()); current.cleanup = []; }
     batHide();
     const sc = C.scenes[st.scene];
-    if (sc.clues.every(c => st.solved[c.id]) && $('nextBtn').hidden) sceneComplete();
+    if (sceneDone(st.scene) && !st.announced[st.scene]) sceneComplete();
   }
 
   /* ---------- финал и очки ---------- */
@@ -633,6 +714,7 @@
     playStory(C.finale, () => {
       Pixel.wipe($('wipe'), () => {
         show('cave');
+        if (window.Sound) Sound.play('cave');
         caveCtl = Pixel.cave($('caveCanvas'));
         const pts = score(), h = Object.keys(st.helped).length;
         const info = {
@@ -642,30 +724,96 @@
           25: ['НОВИЧОК', '«Ты дошёл до конца, и все живы. Это главное. А думать самому — научишься. Начнём с начала».']
         }[pts];
         $('scoreRank').textContent = 'ЗВАНИЕ: ' + info[0];
-        $('scoreDetail').textContent = `СЛОЖНОСТЬ: ${DIFFS[diff].name} · С ПОДСКАЗКОЙ: ${h} ИЗ ${TOTAL}`;
+        const easiest = Object.keys(st.diffs).sort((a, b) => DIFF_RANK[a] - DIFF_RANK[b])[0] || diff;
+        $('scoreDetail').textContent = `СЛОЖНОСТЬ: ${DIFFS[easiest].name}${Object.keys(st.diffs).length > 1 ? ' (менялась)' : ''} · С ПОДСКАЗКОЙ: ${h} ИЗ ${TOTAL}`;
         $('scoreQuote').textContent = info[1];
         let n = 0;
         const t = setInterval(() => { n = Math.min(pts, n + 5); $('scoreNum').textContent = n; if (n >= pts) clearInterval(t); }, 40);
         const best = store.get(C.id);
-        if (!best || pts > best.pts || (pts === best.pts && DIFF_RANK[diff] > DIFF_RANK[best.diff])) store.set(C.id, { pts, diff });
+        if (!best || pts > best.pts || (pts === best.pts && DIFF_RANK[easiest] > DIFF_RANK[best.diff])) store.set(C.id, { pts, diff: easiest });
       });
     }, 'В ПЕЩЕРУ →');
   }
 
   /* ---------- запуск ---------- */
   function startCase() {
-    st = { scene: 0, solved: {}, helped: {}, hintLevel: {}, hintsUsed: 0 };
+    st = { scene: 0, solved: {}, helped: {}, hintLevel: {}, hintsUsed: 0, announced: {}, diffs: { [diff]: true } };
     TOTAL = C.scenes.reduce((n, s) => n + s.clues.length, 0);
     $('hudNo').textContent = 'ДЕЛО №' + C.no;
     $('hudName').textContent = C.title;
-    $('hudDiff').textContent = DIFFS[diff].name;
     $('notes').innerHTML = '';
     $('notesEmpty').hidden = false;
+    $('detBtn').setAttribute('aria-pressed', 'false');
+    $('case').classList.remove('det');
     show('case');
+    document.body.classList.add('in-case');
+    if (window.Sound) Sound.play(C.music || 'noir');
     playStory(C.briefing, () => loadScene(0), 'НАЧАТЬ ОСМОТР →');
   }
 
+  /* ---------- окно настроек ---------- */
+  function initSettings() {
+    const box = $('setBody');
+    const slider = (key, name, min, max, unit) => {
+      const row = el('label', 'slider', `<span>${name}</span><input type="range" min="${min}" max="${max}" step="1" value="${settings[key]}"><b>${settings[key]}${unit}</b>`);
+      const inp = row.querySelector('input');
+      inp.oninput = () => { settings[key] = +inp.value; row.querySelector('b').textContent = inp.value + unit; applySettings(); };
+      return row;
+    };
+    const seg = (name, opts, get, set, id) => {
+      const row = el('div', 'seg-row', `<span>${name}</span><div class="seg"></div>`);
+      if (id) row.id = id;
+      const s = row.querySelector('.seg');
+      opts.forEach(([v, label]) => {
+        const b = btn('seg-b', label, () => { set(v); s.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.v === String(get())))); });
+        b.dataset.v = v; b.setAttribute('aria-pressed', String(String(get()) === String(v)));
+        s.appendChild(b);
+      });
+      return row;
+    };
+    const onoff = [[true, 'ВКЛ'], [false, 'ВЫКЛ']];
+    box.append(
+      el('h4', 'set-h', 'ЗВУК'),
+      slider('music', 'МУЗЫКА', 0, 100, '%'),
+      slider('sfx', 'ЗВУКИ', 0, 100, '%'),
+      el('h4', 'set-h', 'ИЗОБРАЖЕНИЕ'),
+      slider('bright', 'ЯРКОСТЬ', 50, 160, '%'),
+      slider('contrast', 'КОНТРАСТ', 60, 150, '%'),
+      seg('ДОЖДЬ НА СЦЕНАХ', onoff, () => settings.rain, v => { settings.rain = v; applySettings(); }),
+      seg('СПОКОЙНЫЙ РЕЖИМ', [[false, 'ВЫКЛ'], [true, 'ВКЛ']], () => settings.calm, v => { settings.calm = v; applySettings(); }),
+      el('h4', 'set-h', 'ТЕКСТ'),
+      seg('СКОРОСТЬ ТЕКСТА', [['slow', 'МЕДЛ.'], ['normal', 'ОБЫЧН.'], ['fast', 'БЫСТР.'], ['instant', 'СРАЗУ']], () => settings.text, v => { settings.text = v; applySettings(); }),
+      seg('КРУПНЫЙ ТЕКСТ', [[false, 'ВЫКЛ'], [true, 'ВКЛ']], () => settings.big, v => { settings.big = v; applySettings(); }),
+      el('h4', 'set-h in-case-only', 'ИГРА'),
+      seg('СЛОЖНОСТЬ', Object.entries(DIFFS).map(([k, d]) => [k, d.name]), () => diff, v => {
+        diff = v; if (st) { st.diffs[v] = true; hud(); }
+      }, 'setDiff')
+    );
+    const acts = el('div', 'set-acts in-case-only');
+    acts.append(
+      btn('btn ghost', 'НАЧАТЬ ДЕЛО ЗАНОВО', () => { if (confirmBox('Начать дело заново? Найденные улики пропадут.')) { closeSettings(); $('modal').hidden = true; document.body.classList.remove('modal-open'); batHide(); startCase(); } }),
+      btn('btn ghost', 'К ВЫБОРУ ДЕЛ', () => { if (confirmBox('Выйти к выбору дел? Прогресс по делу не сохранится.')) location.reload(); })
+    );
+    box.appendChild(acts);
+    box.appendChild(el('p', 'note', 'В спокойном режиме выключаются тряска, мигание и лишняя анимация. Сложность можно менять на ходу: в итоге засчитается самая лёгкая из выбранных.'));
+    $('setBtn').onclick = e => { e.stopPropagation(); openSettings(); };
+    $('setClose').onclick = closeSettings;
+    $('settings').addEventListener('click', e => { if (e.target === $('settings')) closeSettings(); });
+  }
+  function confirmBox(text) { return window.confirm(text); }
+  function openSettings() {
+    document.querySelectorAll('#setDiff .seg-b').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.v === diff)));
+    $('settings').hidden = false; sfx('click');
+  }
+  function closeSettings() { $('settings').hidden = true; }
+
   function init() {
+    applySettings();
+    initSettings();
+    const unlock = () => { if (window.Sound) { Sound.unlock(); applySettings(); } };
+    document.addEventListener('pointerdown', unlock, { capture: true });
+    document.addEventListener('keydown', unlock, { capture: true });
+    if (window.Sound) Sound.play('intro');
     roadCtl = Pixel.road($('road'));
     // папки дел
     const stack = $('stack');
@@ -689,6 +837,7 @@
         dl.querySelectorAll('button').forEach(x => x.disabled = true);
         $('diff').classList.add('go');
         $('pxSub').textContent = 'Полный газ!';
+        sfx('boost');
         roadCtl.boost(() => { roadCtl.stop(); startCase(); });
       };
       dl.appendChild(b);
@@ -710,7 +859,10 @@
       $('detBtn').setAttribute('aria-pressed', String(on));
     };
     $('againBtn').onclick = () => location.reload();
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('modal').hidden) closeModal(); });
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (!$('settings').hidden) closeSettings(); else if (!$('modal').hidden) closeModal();
+    });
   }
 
   init();
