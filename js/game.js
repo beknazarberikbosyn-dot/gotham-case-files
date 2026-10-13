@@ -1029,13 +1029,12 @@
     // кампания открывается после всех учебных дел (?unlock — открыть сразу)
     const doneT = CASES.filter(cs => store.get(cs.id)).length;
     const open = doneT >= CASES.length || /[?&]unlock\b/.test(location.search);
+    const skipped = () => { try { return localStorage.getItem('gcf_skip_training') === '1'; } catch (_) { return false; } };
     stack.appendChild(el('p', 'stack-h', 'СЮЖЕТНАЯ КАМПАНИЯ'));
     CAMPAIGN.forEach(ch => {
-      const b = el('button', 'folder chapter' + (open ? ' open' : ' locked'), `<span class="tab">ГЛАВА ${'I'.repeat(ch.no)}</span><b>${ch.title}</b><i>${open ? ch.cases.length + ' из ' + (ch.cases.length + ch.soon.length) + ' дел открыто' : 'Пройди все учебные дела: ' + doneT + ' из ' + CASES.length}</i>`);
+      const b = el('button', 'folder chapter' + (open || skipped() ? ' open' : ' locked'), `<span class="tab">ГЛАВА ${'I'.repeat(ch.no)}</span><b>${ch.title}</b><i>${open ? ch.cases.length + ' из ' + (ch.cases.length + ch.soon.length) + ' дел открыто' : 'Учебных дел пройдено: ' + doneT + ' из ' + CASES.length + (skipped() ? ' · стажировка пропущена' : ' · можно начать сразу')}</i>`);
       b.type = 'button'; b.dataset.chapter = ch.no;
-      if (!open) b.disabled = true;
-      b.onclick = e => {
-        e.stopPropagation();
+      const openChapter = () => {
         $('chTitle').textContent = 'ГЛАВА ' + 'I'.repeat(ch.no) + ' · ' + ch.title;
         $('chIntro').textContent = ch.intro;
         const list = $('chList'); list.innerHTML = '';
@@ -1047,10 +1046,20 @@
           list.appendChild(c);
         });
         ch.soon.forEach(t => { const c = el('button', 'diff-b locked', `<b>${t}</b><i>засекречено · скоро</i>`); c.type = 'button'; c.disabled = true; list.appendChild(c); });
-        $('files').hidden = true; $('chapter').hidden = false;
+        $('files').hidden = true; $('skipAsk').hidden = true; $('chapter').hidden = false;
+      };
+      b.onclick = e => {
+        e.stopPropagation(); sfx('click');
+        if (open || skipped()) { openChapter(); return; }
+        // учебные дела не пройдены — спрашиваем, точно ли начать без них
+        const left = CASES.filter(cs => !store.get(cs.id)).map(cs => '«' + cs.title.charAt(0) + cs.title.slice(1).toLowerCase() + '»');
+        $('skipText').textContent = `Стажировка ещё не закончена: не пройдено ${left.length} из ${CASES.length} учебных дел (${left.join(', ')}). В них Бэтмен учит всем приёмам, которые понадобятся в кампании: шифрам, отпечаткам, архиву беглецов. Начать кампанию прямо сейчас?`;
+        $('skipYes').onclick = ev => { ev.stopPropagation(); sfx('ok'); try { localStorage.setItem('gcf_skip_training', '1'); } catch (_) {} b.classList.replace('locked', 'open'); b.querySelector('i').textContent = 'Учебных дел пройдено: ' + doneT + ' из ' + CASES.length + ' · стажировка пропущена'; openChapter(); };
+        $('files').hidden = true; $('skipAsk').hidden = false;
       };
       stack.appendChild(b);
     });
+    $('skipNo').onclick = e => { e.stopPropagation(); sfx('click'); $('skipAsk').hidden = true; $('files').hidden = false; };
     $('chBack').onclick = e => { e.stopPropagation(); $('chapter').hidden = true; $('files').hidden = false; };
     // сложность
     const dl = $('diffList');

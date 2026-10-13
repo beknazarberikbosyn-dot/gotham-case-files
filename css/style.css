@@ -428,7 +428,8 @@ html:has(body.big-text){font-size:112.5%}
 .folder.chapter{width:min(530px,86vw);background:#7a1220;color:#fff;box-shadow:0 0 0 4px #000,inset -6px -6px 0 #4d0a14,inset 6px 6px 0 #a8303f,10px 10px 0 rgba(0,0,0,.55)}
 .folder.chapter .tab{background:#7a1220;box-shadow:0 0 0 4px #000,inset 6px 6px 0 #a8303f}
 .folder.chapter i{color:#ffd9de}
-.folder.chapter.locked{background:#3b2a2e;color:#9a8a8e;cursor:not-allowed}
+.folder.chapter.locked{background:#3b2a2e;color:#c4b5b9}
+.folder.chapter.locked:hover,.folder.chapter.locked:focus-visible{background:#5a2f37}
 .folder.chapter.locked .tab{background:#3b2a2e}
 .folder.chapter.open::after{content:"СЮЖЕТ";color:#fff;border-color:#fff}
 .chapter-panel{max-width:min(620px,94vw)}
@@ -453,3 +454,6 @@ html:has(body.big-text){font-size:112.5%}
 .i-line{background:#fff;color:#000;border:3px solid #000;outline:2px solid #fff;padding:10px 12px;font-weight:700;font-size:1.02rem;line-height:1.4;margin:6px 0 10px}
 .i-step{margin-top:8px;font-family:var(--head);font-size:.7rem;letter-spacing:1px;color:#999}
 @media (max-width:640px){.interro{grid-template-columns:1fr}.i-face{max-width:180px}}
+
+.skip-ask{box-shadow:0 0 0 4px #d0142c,0 0 0 8px #000}
+.diff-b.alt{background:#2a3150;color:#fff;box-shadow:0 0 0 4px #000,inset -5px -5px 0 #1b2038,inset 5px 5px 0 #3d4670}.diff-b.alt i{color:#cfd6f5}
