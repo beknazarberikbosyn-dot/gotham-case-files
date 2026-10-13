@@ -185,6 +185,18 @@
         }
       }
     },
+    // лечебница: гул, сердцебиение, расстроенное пианино, треск огня
+    asylum: {
+      bpm: 60, div: 2, len: 64, rain: 0.02,
+      play(i, t, s) {
+        const bar = Math.floor(i / 8) % 4, k = i % 8;
+        const ch = [[N.D3, N.F3, N.A3], [N.Cs4 - 12, N.E3, N.G3], [N.D3, N.F3, N.Bb3], [N.A2, N.E3, N.G3]];
+        if (k === 0) { pad(ch[bar], t, s * 8, 0.03); bass(ch[bar][0] - 12, t, s * 7, 0.1); }
+        if (k === 0 || k === 1) kick(t, k === 0 ? 0.22 : 0.12);
+        if (k === 4 && Math.random() < 0.7) { const n = [N.D5, N.F5, N.E5, N.Cs5, N.A4][Math.floor(Math.random() * 5)]; piano(n, t, 0.045); piano(n + 1, t + 0.02, 0.02); }
+        if (Math.random() < 0.18) { const h = noiseHit(t, 0.04, 3500, 0.02); out(h.g); h.s.start(t); }
+      }
+    },
     // победа: бодрая восьмибитная фанфара
     cave: {
       bpm: 132, div: 2, len: 32, rain: 0,

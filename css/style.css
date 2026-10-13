@@ -422,3 +422,34 @@ html:has(body.big-text){font-size:112.5%}
 .grid .cell.plain{background:#d9d2bf;border:1px solid #9a9381;font-size:clamp(.9rem,3.6vw,1.3rem);font-family:var(--head)}
 .tally-wrap svg{display:block;width:100%;max-width:520px;border:3px solid #fff}
 @media (max-width:900px){.arch{grid-template-columns:1fr}.arch-traces{position:static}}
+
+/* ================= КАМПАНИЯ ================= */
+.stack-h{flex-basis:100%;margin:6px 0 2px;font-family:var(--px);font-size:9px;color:#aeb9e6;text-shadow:2px 2px 0 #000;text-align:center}
+.folder.chapter{width:min(530px,86vw);background:#7a1220;color:#fff;box-shadow:0 0 0 4px #000,inset -6px -6px 0 #4d0a14,inset 6px 6px 0 #a8303f,10px 10px 0 rgba(0,0,0,.55)}
+.folder.chapter .tab{background:#7a1220;box-shadow:0 0 0 4px #000,inset 6px 6px 0 #a8303f}
+.folder.chapter i{color:#ffd9de}
+.folder.chapter.locked{background:#3b2a2e;color:#9a8a8e;cursor:not-allowed}
+.folder.chapter.locked .tab{background:#3b2a2e}
+.folder.chapter.open::after{content:"СЮЖЕТ";color:#fff;border-color:#fff}
+.chapter-panel{max-width:min(620px,94vw)}
+.ch-intro{margin:0;font-family:var(--body);font-size:.95rem;line-height:1.45;color:#fff;text-align:left}
+.diff-b.locked{background:#3b3528;color:#8a8170;box-shadow:0 0 0 4px #000;cursor:not-allowed;flex-direction:row;justify-content:space-between;align-items:center;padding:9px 16px}
+.diff-b.locked i{color:#b3a68c}
+.chapter-panel .diff-list{gap:10px}
+/* засада в переулке */
+.arr.alleymap{height:300px;max-width:520px;margin-left:auto;margin-right:auto}
+.alley{position:absolute;inset:6% 4%;background:#1a1a1a repeating-linear-gradient(90deg,#222 0 26px,#1a1a1a 26px 52px);border:3px solid #fff}
+.al-street,.al-plaque{position:absolute;top:50%;transform:translateY(-50%);font-family:var(--head);font-size:.7rem;letter-spacing:1px;color:#000;background:#fff;padding:4px 6px}
+.al-street{left:-3px;writing-mode:vertical-rl;transform:translateY(-50%) rotate(180deg)}
+.al-plaque{right:-3px;background:var(--red);color:#fff}
+.arr.alleymap .slot{position:absolute;transform:translate(-50%,-50%);width:120px}
+/* допрос */
+.interro{display:grid;grid-template-columns:180px 1fr;gap:16px;align-items:start}
+.i-face svg{display:block;width:100%;border:4px solid #fff;box-shadow:6px 6px 0 var(--red)}
+.i-log p{margin:0 0 6px;font-size:.9rem;line-height:1.4}
+.i-old{color:#888}
+.i-ev{color:var(--det);font-weight:700}
+.i-rep{background:#1b1b1b;border-left:4px solid var(--red);padding:6px 10px;color:#fff}
+.i-line{background:#fff;color:#000;border:3px solid #000;outline:2px solid #fff;padding:10px 12px;font-weight:700;font-size:1.02rem;line-height:1.4;margin:6px 0 10px}
+.i-step{margin-top:8px;font-family:var(--head);font-size:.7rem;letter-spacing:1px;color:#999}
+@media (max-width:640px){.interro{grid-template-columns:1fr}.i-face{max-width:180px}}

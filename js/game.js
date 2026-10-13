@@ -2,13 +2,15 @@
 (function () {
   const $ = id => document.getElementById(id);
   const CASES = [window.CASE1, window.CASE2, window.CASE3].filter(Boolean);
+  const CAMPAIGN = window.CAMPAIGN || [];
+  const ALL_CASES = CASES.concat(...CAMPAIGN.map(ch => ch.cases));
   const DIFFS = {
     easy: { name: 'ЛЁГКАЯ', note: 'Справочник под рукой, часть ответов — на выбор' },
     medium: { name: 'СРЕДНЯЯ', note: 'Справочник под рукой, отвечаешь сам' },
     hard: { name: 'СЛОЖНАЯ', note: 'Только улики и твоя голова' }
   };
   const DIFF_RANK = { easy: 0, medium: 1, hard: 2 };
-  let C, TOTAL, st, diff = 'medium', roadCtl, caveCtl, current = null;
+  let C, TOTAL, st, diff = 'medium', roadCtl, caveCtl, current = null, diffFrom = 'files';
   const sfx = n => { if (window.Sound) Sound.sfx(n); };
 
   /* ---------- настройки ---------- */
@@ -98,8 +100,10 @@
   const sceneDone = i => C.scenes[i].clues.every(c => st.solved[c.id]);
   const scenesDone = () => C.scenes.every((_, i) => sceneDone(i));
   const allDone = () => scenesDone() && (!C.archive || !!st.solved.archive);
+  const finalAction = () => { if (C.interrogation && !st.solved.interrogation) openClue(interroClue()); else toFinale(); };
+  const interroClue = () => Object.assign({ id: 'interrogation', type: 'interrogate', checkLabel: '', exhibit: () => '' }, C.interrogation);
   const allTraces = () => C.scenes.flatMap(sc => sc.clues.filter(c => c.type === 'trace'));
-  const ALL_COUNT = () => C.scenes.reduce((n, sc) => n + sc.clues.length, 0) + (C.archive ? 1 : 0);
+  const ALL_COUNT = () => C.scenes.reduce((n, sc) => n + sc.clues.length, 0) + (C.archive ? 1 : 0) + (C.interrogation ? 1 : 0);
   // загадка архива — «виртуальная» улика без места на сцене
   const archiveClue = () => ({ id: 'archive', name: C.archive.name, type: 'archive', q: C.archive.q, hints: C.archive.hints, done: C.archive.done, checkLabel: 'ОТПРАВИТЬ В БЭТ-КОМПЬЮТЕР', exhibit: () => `<p class="note">Нажми на след слева, потом на досье беглеца, к которому он подходит, — запись появится в досье и в блокноте. Нажми на запись в досье, чтобы её стереть. Когда все следы будут записаны, отправь архив на проверку: бэт-компьютер скажет только, сколько записей верны.</p>` });
   const openArchive = () => openClue(archiveClue());
@@ -134,15 +138,15 @@
       box.appendChild(a);
     }
     const fin = allDone();
-    const f = btn('place final' + (fin ? ' open' : ''), '', () => { if (fin) toFinale(); });
-    f.innerHTML = `<b>★</b><span>${fin ? 'ЛОГОВО' : 'ЛОГОВО'}</span><i>${fin ? 'открыто' : '🔒'}</i>`;
+    const f = btn('place final' + (fin ? ' open' : ''), '', () => { if (fin) finalAction(); });
+    f.innerHTML = `<b>★</b><span>${C.finalLabel || 'ЛОГОВО'}</span><i>${fin ? 'открыто' : '🔒'}</i>`;
     f.disabled = !fin;
     f.title = fin ? 'Все улики собраны' : (C.archive ? 'Откроется, когда соберёшь все улики и проверишь архив' : 'Откроется, когда соберёшь все улики во всех местах');
     box.appendChild(f);
   }
 
   function nextTarget() {
-    if (allDone()) return { label: 'К ЛОГОВУ →', fn: toFinale };
+    if (allDone()) return { label: (C.finalLabel ? 'НА ' + C.finalLabel : 'К ЛОГОВУ') + ' →', fn: finalAction };
     if (scenesDone() && C.archive) return { label: 'В АРХИВ →', fn: openArchive };
     const n = C.scenes.length;
     for (let k = 1; k <= n; k++) { const i = (st.scene + k) % n; if (!sceneDone(i)) return { label: `МЕСТО ${i + 1} →`, fn: () => goScene(i) }; }
@@ -196,6 +200,7 @@
       });
       if (st.solved.archive) { const li = el('li'); li.innerHTML = '<b>Архив проверен</b>'; li.appendChild(document.createTextNode(C.archive.done)); ol.appendChild(li); }
     }
+    if (C.interrogation && st.solved.interrogation) { const h = el('li', 'place'); h.textContent = 'ДОПРОС'; ol.appendChild(h); const li = el('li'); li.innerHTML = '<b>Показания</b>'; li.appendChild(document.createTextNode(C.interrogation.done)); ol.appendChild(li); }
     $('notesEmpty').hidden = !!ol.children.length;
   }
 
@@ -696,6 +701,30 @@
       render();
       return { empty: () => !Object.keys(where).length, check: () => v.items.every(i => where[i.id] === i.bin) };
     },
+    /* --- допрос: предъяви улику, когда он лжёт --- */
+    interrogate(v, A, ctx) {
+      let r = 0;
+      const box = el('div', 'interro');
+      box.innerHTML = `<div class="i-face">${Art[v.portrait || 'phosPortrait']()}</div><div class="i-talk"><div class="i-log"></div><div class="i-now"></div><div class="order-h">ПРЕДЪЯВИТЬ УЛИКУ ИЗ БЛОКНОТА</div><div class="i-opts opts"></div><div class="i-step"></div></div>`;
+      const log = box.querySelector('.i-log'), now = box.querySelector('.i-now'), opts = box.querySelector('.i-opts'), step = box.querySelector('.i-step');
+      const render = () => {
+        const R = v.rounds[r];
+        now.innerHTML = `<p class="i-line">${R.line}</p>`;
+        step.textContent = `Ложь ${r + 1} из ${v.rounds.length}`;
+        opts.replaceChildren(...R.options.map((o, i) => btn('opt', o, () => {
+          if (R.answer.includes(i)) {
+            sfx('ok');
+            log.insertAdjacentHTML('beforeend', `<p class="i-old">${R.line}</p><p class="i-ev">Робин: «${o}».</p><p class="i-rep">${R.reply}</p>`);
+            r++;
+            if (r >= v.rounds.length) { now.innerHTML = ''; opts.innerHTML = ''; step.textContent = ''; setTimeout(() => ctx.solve(), 300); }
+            else render();
+          } else wrong(v.mock ? v.mock[i % v.mock.length] : '«Ха. Это ничего не доказывает». — Улика не опровергает его слова. Найди ту, что говорит обратное.');
+        })));
+      };
+      A.appendChild(box);
+      render();
+      return { noCheck: true, empty: () => true, check: () => false };
+    },
     /* --- архив беглецов --- */
     archive(v, A) {
       const AR = C.archive, traces = allTraces();
@@ -867,6 +896,7 @@
     if (current) { current.cleanup.forEach(f => f()); current.cleanup = []; }
     batHide();
     const sc = C.scenes[st.scene];
+    if (current && current.clue.id === 'interrogation' && st.solved.interrogation) { toFinale(); return; }
     if (sceneDone(st.scene) && !st.announced[st.scene]) sceneComplete();
   }
 
@@ -907,8 +937,8 @@
   /* ---------- запуск ---------- */
   function startCase() {
     st = { scene: 0, solved: {}, helped: {}, hintLevel: {}, hintsUsed: 0, announced: {}, diffs: { [diff]: true }, links: {} };
-    TOTAL = C.scenes.reduce((n, s) => n + s.clues.filter(c => c.type !== 'trace').length, 0) + (C.archive ? 1 : 0);
-    $('hudNo').textContent = 'ДЕЛО №' + C.no;
+    TOTAL = C.scenes.reduce((n, s) => n + s.clues.filter(c => c.type !== 'trace').length, 0) + (C.archive ? 1 : 0) + (C.interrogation ? 1 : 0);
+    $('hudNo').textContent = C.campaign ? 'ГЛ. ' + 'I'.repeat(C.chapter) + ' · ДЕЛО ' + C.no : 'ДЕЛО №' + C.no;
     $('hudName').textContent = C.title;
     $('notes').innerHTML = '';
     $('notesEmpty').hidden = false;
@@ -984,17 +1014,44 @@
     document.addEventListener('keydown', unlock, { capture: true });
     if (window.Sound) Sound.play('intro');
     roadCtl = Pixel.road($('road'));
-    // папки дел
+    // папки дел: учебные дела и сюжетная кампания
     const stack = $('stack');
+    const chooseCase = cs => { C = cs; $('files').hidden = true; $('chapter').hidden = true; $('diffCase').textContent = (cs.campaign ? 'ГЛАВА ' + 'I'.repeat(cs.chapter) + ' · ДЕЛО ' + cs.no : 'ДЕЛО №' + cs.no) + ' · ' + cs.title; $('diff').hidden = false; diffFrom = cs.campaign ? 'chapter' : 'files'; };
+    stack.appendChild(el('p', 'stack-h', 'СТАЖИРОВКА · УЧЕБНЫЕ ДЕЛА'));
     CASES.forEach(cs => {
       const best = store.get(cs.id);
       const b = el('button', 'folder open', `<span class="tab">ДЕЛО №${cs.no}</span><b>${cs.title}</b><i>${cs.teaser}</i><em>${best && best.pts ? 'ЛУЧШЕЕ: ' + best.pts + ' · ' + DIFFS[best.diff || 'hard'].name : ''}</em>`);
       b.type = 'button';
       b.dataset.case = cs.id;
-      b.onclick = e => { e.stopPropagation(); C = cs; $('files').hidden = true; $('diffCase').textContent = 'ДЕЛО №' + cs.no + ' · ' + cs.title; $('diff').hidden = false; };
+      b.onclick = e => { e.stopPropagation(); chooseCase(cs); };
       stack.appendChild(b);
     });
-    stack.appendChild(el('div', 'folder locked', `<span class="tab">ДЕЛО №${CASES.length + 1}</span><b>ЗАСЕКРЕЧЕНО</b><i>скоро</i>`));
+    // кампания открывается после всех учебных дел (?unlock — открыть сразу)
+    const doneT = CASES.filter(cs => store.get(cs.id)).length;
+    const open = doneT >= CASES.length || /[?&]unlock\b/.test(location.search);
+    stack.appendChild(el('p', 'stack-h', 'СЮЖЕТНАЯ КАМПАНИЯ'));
+    CAMPAIGN.forEach(ch => {
+      const b = el('button', 'folder chapter' + (open ? ' open' : ' locked'), `<span class="tab">ГЛАВА ${'I'.repeat(ch.no)}</span><b>${ch.title}</b><i>${open ? ch.cases.length + ' из ' + (ch.cases.length + ch.soon.length) + ' дел открыто' : 'Пройди все учебные дела: ' + doneT + ' из ' + CASES.length}</i>`);
+      b.type = 'button'; b.dataset.chapter = ch.no;
+      if (!open) b.disabled = true;
+      b.onclick = e => {
+        e.stopPropagation();
+        $('chTitle').textContent = 'ГЛАВА ' + 'I'.repeat(ch.no) + ' · ' + ch.title;
+        $('chIntro').textContent = ch.intro;
+        const list = $('chList'); list.innerHTML = '';
+        ch.cases.forEach(cs => {
+          const best = store.get(cs.id);
+          const c = el('button', 'diff-b', `<b>ДЕЛО ${cs.no} · ${cs.title}</b><i>${cs.teaser}${best ? ' · ЛУЧШЕЕ: ' + best.pts : ''}</i>`);
+          c.type = 'button'; c.dataset.case = cs.id;
+          c.onclick = ev => { ev.stopPropagation(); chooseCase(cs); };
+          list.appendChild(c);
+        });
+        ch.soon.forEach(t => { const c = el('button', 'diff-b locked', `<b>${t}</b><i>засекречено · скоро</i>`); c.type = 'button'; c.disabled = true; list.appendChild(c); });
+        $('files').hidden = true; $('chapter').hidden = false;
+      };
+      stack.appendChild(b);
+    });
+    $('chBack').onclick = e => { e.stopPropagation(); $('chapter').hidden = true; $('files').hidden = false; };
     // сложность
     const dl = $('diffList');
     Object.entries(DIFFS).forEach(([k, d]) => {
@@ -1011,7 +1068,7 @@
       };
       dl.appendChild(b);
     });
-    $('diffBack').onclick = e => { e.stopPropagation(); $('diff').hidden = true; $('files').hidden = false; };
+    $('diffBack').onclick = e => { e.stopPropagation(); $('diff').hidden = true; $(diffFrom).hidden = false; };
 
     let shown = false;
     const reveal = () => { if (shown) return; shown = true; $('files').hidden = false; $('pxSub').textContent = 'Капитан Гордон передал папки. Стажировка продолжается.'; };
