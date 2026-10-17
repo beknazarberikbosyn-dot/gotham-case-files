@@ -197,6 +197,43 @@
         if (Math.random() < 0.18) { const h = noiseHit(t, 0.04, 3500, 0.02); out(h.g); h.s.start(t); }
       }
     },
+    // Анархия: рваный панк-бас, малый барабан, сирена-глиссандо
+    anarchy: {
+      bpm: 128, div: 2, len: 64, rain: 0.03,
+      play(i, t, s) {
+        const bar = Math.floor(i / 8) % 4, k = i % 8;
+        const roots = [N.E2, N.E2, N.C3 - 12, N.D3 - 12];
+        bass(roots[bar] + (k === 3 || k === 6 ? 12 : 0), t, s * 0.7, k % 2 ? 0.09 : 0.15);
+        if (k === 0 || k === 5) kick(t, 0.3);
+        if (k === 2 || k === 6) { const h = noiseHit(t, 0.12, 1800, 0.06, 'bandpass'); out(h.g, 0.2); h.s.start(t); }
+        if (k % 2 === 1) hat(t, 0.02);
+        if (bar === 3 && k === 0) square(N.B4, t, s * 3, 0.018, 1800);
+        if (i % 64 === 48) { const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(520, t); o.frequency.linearRampToValueAtTime(760, t + s * 4); o.frequency.linearRampToValueAtTime(520, t + s * 8); const g = ctx.createGain(); env(g, t, 0.2, 0.018, 0, s * 7, 0.4); o.connect(g); out(g, 0.4); o.start(t); o.stop(t + s * 9); }
+      }
+    },
+    // обратный отсчёт: часы, пульс, растущий гул
+    countdown: {
+      bpm: 120, div: 2, len: 64, rain: 0,
+      play(i, t, s) {
+        const k = i % 8, bar = Math.floor(i / 8) % 8;
+        if (k % 2 === 0) { const h = noiseHit(t, 0.025, 4200, 0.05); out(h.g); h.s.start(t); }
+        if (k === 0 || k === 3) kick(t, k ? 0.14 : 0.24);
+        if (k === 0) { const ch = [[N.D3, N.F3, N.A3], [N.D3, N.F3, N.Bb3], [N.D3, N.G3, N.Bb3], [N.Cs4 - 12, N.E3, N.A3]][bar % 4]; pad(ch, t, s * 8, 0.03 + bar * 0.003); bass(ch[0] - 12, t, s * 7, 0.11); }
+        square((bar % 2 ? N.A4 : N.D5) + (k === 7 ? 1 : 0), t, s * 0.25, 0.008, 2400);
+      }
+    },
+    // пепел: гул пожара, далёкие сирены, редкие ноты
+    ashes: {
+      bpm: 50, div: 1, len: 32, rain: 0,
+      play(i, t, s) {
+        if (i % 8 === 0) { pad([N.D3, N.A3, N.F4], t, s * 8, 0.03); bass(N.D3 - 12, t, s * 8, 0.09); }
+        if (i % 8 === 4) pad([N.Bb2, N.F3, N.D4], t, s * 4, 0.022);
+        { const h = noiseHit(t, s * 1.1, 300, 0.03, 'lowpass'); out(h.g); h.s.start(t); }
+        if (Math.random() < 0.5) { const h = noiseHit(t + Math.random() * s, 0.03, 2600, 0.03); out(h.g); h.s.start(t); }
+        if (i % 16 === 6) { const o = ctx.createOscillator(); o.type = 'sine'; const g = ctx.createGain(); for (let r = 0; r < 4; r++) { o.frequency.setValueAtTime(r % 2 ? 610 : 820, t + r * 0.55); } env(g, t, 0.4, 0.012, 0, 1.8, 0.6); o.connect(g); out(g, 0.9); o.start(t); o.stop(t + 3); }
+        if (Math.random() < 0.2) piano([N.D5, N.F5, N.A4, N.E5][Math.floor(Math.random() * 4)], t, 0.03);
+      }
+    },
     // победа: бодрая восьмибитная фанфара
     cave: {
       bpm: 132, div: 2, len: 32, rain: 0,
@@ -256,6 +293,11 @@
       case 'scrape': nz(t, 0.06, 1200, 0.05, 'bandpass'); break;
       case 'boost': { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(60, t); o.frequency.exponentialRampToValueAtTime(420, t + 1.6); const g = ctx.createGain(); env(g, t, 0.1, 0.08, 0, 1.3, 0.4); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; o.connect(f); f.connect(g); g.connect(sfxBus); o.start(t); o.stop(t + 2); break; }
       case 'whoosh': nz(t, 0.5, 900, 0.08, 'bandpass'); break;
+      case 'boom': { const o = ctx.createOscillator(); o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(28, t + 1.4); const g = ctx.createGain(); env(g, t, 0.005, 0.55, 1.6); o.connect(g); g.connect(sfxBus); o.start(t); o.stop(t + 1.8); nz(t, 2.6, 380, 0.5, 'lowpass'); nz(t + 0.05, 0.6, 1500, 0.2, 'bandpass'); break; }
+      case 'alarm': [0, 0.36, 0.72].forEach(d => { tone(880, t + d, 0.16, 'square', 0.035); tone(660, t + d + 0.18, 0.16, 'square', 0.035); }); break;
+      case 'beep': tone(1320, t, 0.06, 'square', 0.03); break;
+      case 'key': nz(t, 0.02, 4000, 0.05); break;
+      case 'zap': { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(1800, t); o.frequency.exponentialRampToValueAtTime(120, t + 0.25); const g = ctx.createGain(); env(g, t, 0.003, 0.06, 0.25); o.connect(g); g.connect(sfxBus); o.start(t); o.stop(t + 0.3); break; }
     }
   }
 

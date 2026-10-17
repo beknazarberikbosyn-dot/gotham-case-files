@@ -61,14 +61,15 @@
     const a = $('batAct');
     a.hidden = !act;
     if (act) { a.textContent = act.label; a.onclick = act.fn; }
-    $('batFace').innerHTML = $('batFace').innerHTML || Art.batman();
-    $('batTag').textContent = tag || 'БЭТМЕН';
+    $('batFace').innerHTML = $('batFace').innerHTML || helperArt();
+    $('batTag').textContent = (!tag || tag === 'БЭТМЕН') && C && C.helper ? C.helper.name : (tag || 'БЭТМЕН');
     const b = $('bat');
     b.hidden = false;
     b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
     $('case').classList.add('with-bat');
     type($('batText'), text, 14);
   }
+  function helperArt() { return C && C.helper ? Art[C.helper.art]() : Art.batman(); }
   function batHide() { $('bat').hidden = true; $('case').classList.remove('with-bat'); }
 
   /* ---------- сюжетные страницы ---------- */
@@ -79,8 +80,8 @@
     function render() {
       const p = pages[i];
       const art = $('storyArt');
-      art.className = 'story-art' + (p.bat ? ' bat-art' : '');
-      art.innerHTML = (p.bat ? Art.batman() : Art[p.art]()) + (p.title ? `<h1>${p.title}</h1>` : '');
+      art.className = 'story-art' + (p.bat || p.oracle ? ' bat-art' : '') + (p.oracle ? ' oracle-art' : '');
+      art.innerHTML = (p.bat ? Art.batman() : p.oracle ? Art.oracle() : Art[p.art]()) + (p.title ? `<h1>${p.title}</h1>` : '');
       $('storyCap').textContent = p.cap || '';
       type($('storyText'), p.text, 14);
       $('storyNext').textContent = i === pages.length - 1 ? (lastLabel || 'ДАЛЬШЕ →') : 'ДАЛЬШЕ →';
@@ -97,10 +98,27 @@
   }
 
   /* ---------- сцена ---------- */
-  const sceneDone = i => C.scenes[i].clues.every(c => st.solved[c.id]);
+  const sceneDone = i => C.scenes[i].hack ? !!st.solved.hack : C.scenes[i].clues.every(c => st.solved[c.id]);
+  const sceneLocked = i => (C.scenes[i].requires || []).some(j => !sceneDone(j));
   const scenesDone = () => C.scenes.every((_, i) => sceneDone(i));
   const allDone = () => scenesDone() && (!C.archive || !!st.solved.archive);
   const finalAction = () => { if (C.fight && !st.solved.fight) startFight(); else if (C.interrogation && !st.solved.interrogation) openClue(interroClue()); else toFinale(); };
+  // взлом под таймер: проиграть нельзя и выиграть нельзя — дело кончается взрывом
+  function startHack() {
+    const box = $('hack'), H = C.scenes[st.scene].hack;
+    batHide(); box.hidden = false; document.body.classList.add('fighting');
+    if (window.Sound) Sound.play(H.music || 'duo');
+    Hack.start(box, Object.assign({ diff }, H, { onEnd: () => { st.solved.hack = true; box.hidden = true; box.innerHTML = ''; document.body.classList.remove('fighting'); endQuiet(); } }));
+  }
+  // конец дела без пещеры и без очков на экране: результат сохраняется молча
+  function endQuiet() {
+    const pts = score(), easiest = Object.keys(st.diffs).sort((a, b) => DIFF_RANK[a] - DIFF_RANK[b])[0] || diff;
+    const best = store.get(C.id);
+    if (!best || pts > best.pts) store.set(C.id, { pts, diff: easiest });
+    if (C.after && C.after.flag) { try { localStorage.setItem(C.after.flag, '1'); } catch (_) {} }
+    const go = () => Pixel.wipe($('wipe'), () => location.reload());
+    if (C.finale && C.finale.length) playStory(C.finale, go, C.finaleCta || 'ДАЛЬШЕ →'); else go();
+  }
   // бой в конце дела: отдельный экран с анимацией
   function startFight() {
     const box = $('fight');
@@ -120,7 +138,7 @@
   const shortName = sc => sc.loc.split(' · ')[1] || sc.loc;
 
   function hud() {
-    const solved = Object.keys(st.solved).filter(k => k !== 'fight').length;
+    const solved = Object.keys(st.solved).filter(k => k !== 'fight' && k !== 'hack').length;
     $('hudClues').textContent = solved + '/' + ALL_COUNT();
     $('hudHints').textContent = st.hintsUsed;
     $('hudDiff').textContent = DIFFS[diff].name;
@@ -133,10 +151,11 @@
     const box = $('places');
     box.innerHTML = '';
     C.scenes.forEach((sc, i) => {
-      const done = sc.clues.filter(c => st.solved[c.id]).length, all = sc.clues.length;
-      const b = btn('place' + (i === st.scene ? ' cur' : '') + (done === all ? ' done' : ''), '', () => goScene(i));
-      b.innerHTML = `<b>${i + 1}</b><span>${shortName(sc)}</span><i>${done === all ? '✓' : done + '/' + all}</i>`;
-      b.setAttribute('aria-label', `Место ${i + 1}: ${shortName(sc)}, улик найдено ${done} из ${all}`);
+      const done = sc.hack ? (st.solved.hack ? 1 : 0) : sc.clues.filter(c => st.solved[c.id]).length, all = sc.hack ? 1 : sc.clues.length, lock = sceneLocked(i);
+      const b = btn('place' + (i === st.scene ? ' cur' : '') + (done === all ? ' done' : '') + (lock ? ' locked' : ''), '', () => { if (!lock) goScene(i); });
+      b.innerHTML = `<b>${i + 1}</b><span>${lock ? (sc.lockName || '? ? ?') : shortName(sc)}</span><i>${lock ? '🔒' : done === all ? '✓' : sc.hack ? '!' : done + '/' + all}</i>`;
+      if (lock) { b.disabled = true; b.title = 'Откроется позже'; }
+      b.setAttribute('aria-label', lock ? `Место ${i + 1}: закрыто` : `Место ${i + 1}: ${shortName(sc)}, улик найдено ${done} из ${all}`);
       if (i === st.scene) b.setAttribute('aria-current', 'true');
       box.appendChild(b);
     });
@@ -147,6 +166,7 @@
       a.setAttribute('aria-label', `Архив Аркхема: следов найдено ${got} из ${tr.length}`);
       box.appendChild(a);
     }
+    if (C.noFinal) return;
     const fin = allDone();
     const f = btn('place final' + (fin ? ' open' : ''), '', () => { if (fin) finalAction(); });
     f.innerHTML = `<b>★</b><span>${C.finalLabel || 'ЛОГОВО'}</span><i>${fin ? 'открыто' : '🔒'}</i>`;
@@ -159,7 +179,7 @@
     if (allDone()) return { label: C.finalCta || (C.finalLabel ? 'НА ' + C.finalLabel : 'К ЛОГОВУ') + ' →', fn: finalAction };
     if (scenesDone() && C.archive) return { label: 'В АРХИВ →', fn: openArchive };
     const n = C.scenes.length;
-    for (let k = 1; k <= n; k++) { const i = (st.scene + k) % n; if (!sceneDone(i)) return { label: `МЕСТО ${i + 1} →`, fn: () => goScene(i) }; }
+    for (let k = 1; k <= n; k++) { const i = (st.scene + k) % n; if (!sceneDone(i) && !sceneLocked(i)) return { label: `МЕСТО ${i + 1} →`, fn: () => goScene(i) }; }
     return null;
   }
 
@@ -171,7 +191,7 @@
   }
 
   function goScene(i) {
-    if (i === st.scene || st.moving) return;
+    if (i === st.scene || st.moving || sceneLocked(i)) return;
     st.moving = true;
     batHide();
     sfx('whoosh');
@@ -227,12 +247,14 @@
     $('scene').querySelectorAll('.hot[data-lore]').forEach(b => b.onclick = () => openLore(sc.lore.find(l => l.id === b.dataset.lore), b));
     $('case').scrollTop = 0;
     hud();
+    if (sc.hack && !st.solved.hack) setTimeout(startHack, 400);
   }
 
   function sceneComplete() {
     const sc = C.scenes[st.scene];
     st.announced[st.scene] = true;
     const t = nextTarget();
+    if (sc.outroStory) { const nx = C.scenes.findIndex((_, k) => !sceneDone(k)); batSay(sc.outro, 'БЭТМЕН', { label: sc.outroCta || 'ДАЛЬШЕ →', fn: () => { batHide(); playStory(sc.outroStory, () => { if (nx >= 0) goScene(nx); }, sc.outroStoryCta || 'ДАЛЬШЕ →'); } }); return; }
     batSay(sc.outro, 'БЭТМЕН', t ? { label: t.label, fn: () => { batHide(); t.fn(); } } : null);
   }
 
@@ -1051,6 +1073,273 @@
     }
   });
 
+  /* ================= НОВЫЕ МЕХАНИКИ (глава I, дело 4) ================= */
+  const A_RED = '#d0142c';
+  const FONT35 = {
+    '0': ['111', '101', '101', '101', '111'], '1': ['010', '110', '010', '010', '111'], '2': ['111', '001', '111', '100', '111'],
+    '3': ['111', '001', '111', '001', '111'], '4': ['101', '101', '111', '001', '001'], '5': ['111', '100', '111', '001', '111'],
+    '6': ['111', '100', '111', '101', '111'], '7': ['111', '001', '010', '010', '010'], '8': ['111', '101', '111', '101', '111'],
+    '9': ['111', '101', '111', '001', '111'], ':': ['0', '1', '0', '1', '0'], '×': ['000', '101', '010', '101', '000'], ' ': ['0', '0', '0', '0', '0']
+  };
+  const WIRE = { 'белый': '#efefef', 'красный': '#d0142c', 'синий': '#2f6bff', 'жёлтый': '#ffd400', 'чёрный': '#151515', 'зелёный': '#2fae5a' };
+  // пигпен-глифы: 9 клеток «решётки» с точкой и без + 4 «галочки» с точкой и без
+  function pigGlyph(k, col) {
+    col = col || '#fff';
+    const S = 'stroke="' + col + '" stroke-width="3" fill="none" stroke-linecap="square"';
+    let h = '';
+    if (k < 18) {
+      const c = k % 9, r = Math.floor(c / 3), q = c % 3, dot = k >= 9;
+      const e = [];
+      if (r > 0) e.push('M4 4H28'); if (r < 2) e.push('M4 28H28'); if (q > 0) e.push('M4 4V28'); if (q < 2) e.push('M28 4V28');
+      h = `<path d="${e.join('')}" ${S}/>` + (dot ? `<circle cx="16" cy="16" r="3" fill="${col}"/>` : '');
+    } else {
+      const v = (k - 18) % 4, dot = k >= 22;
+      const d = ['M4 4L16 28L28 4', 'M4 28L16 4L28 28', 'M4 4L28 16L4 28', 'M28 4L4 16L28 28'][v];
+      const dp = [[16, 12], [16, 20], [12, 16], [20, 16]][v];
+      h = `<path d="${d}" ${S} stroke-linejoin="miter"/>` + (dot ? `<circle cx="${dp[0]}" cy="${dp[1]}" r="3" fill="${col}"/>` : '');
+    }
+    return `<svg viewBox="0 0 32 32" class="pg">${h}</svg>`;
+  }
+  Object.assign(TYPES, {
+    /* --- прозрачные трафареты: повернуть листы, чтобы прорези сложились в надпись --- */
+    layers(v, A, ctx) {
+      const N = v.size || 19, CS = 12, n = v.sheets || 3;
+      const px = [];
+      v.lines.forEach((line, li) => {
+        const chars = line.split(''), w = chars.reduce((s, ch) => s + FONT35[ch][0].length, 0) + chars.length - 1;
+        let x = Math.floor((N - w) / 2);
+        const y0 = v.rowsAt ? v.rowsAt[li] : 3 + li * 8;
+        chars.forEach(ch => { const g = FONT35[ch]; g.forEach((row, ry) => row.split('').forEach((b, rx) => { if (b === '1') px.push([x + rx, y0 + ry]); })); x += g[0].length + 1; });
+      });
+      const own = px.map(([x, y], i) => (x * 7 + y * 13 + i * 5 + (v.seed || 0)) % n);
+      const rot = (v.start || [1, 2, 3, 1]).slice(0, n);
+      const COLS = ['#5fd0ff', '#ff7ab0', '#ffd400', '#9fff8a'];
+      let done = false;
+      const wrap = el('div', 'layers');
+      const draw = () => {
+        const ok = rot.every(r => r % 4 === 0);
+        let h = `<rect width="${N * CS}" height="${N * CS}" fill="#05070a"/><g stroke="#10161c" stroke-width="1">${Array.from({ length: N + 1 }, (_, i) => `<path d="M${i * CS} 0V${N * CS}M0 ${i * CS}H${N * CS}"/>`).join('')}</g>`;
+        for (let k = 0; k < n; k++) {
+          h += `<g class="ly" data-k="${k}" transform="rotate(${rot[k] * 90} ${N * CS / 2} ${N * CS / 2})">`;
+          h += `<rect x="3" y="3" width="${N * CS - 6}" height="${N * CS - 6}" fill="${COLS[k]}" opacity=".05" stroke="${COLS[k]}" stroke-opacity=".35" stroke-width="2" stroke-dasharray="6 4"/><circle cx="${8 + k * 8}" cy="8" r="3" fill="${COLS[k]}" opacity=".8"/>`;
+          px.forEach(([x, y], i) => { if (own[i] === k) h += `<rect x="${x * CS + 1}" y="${y * CS + 1}" width="${CS - 2}" height="${CS - 2}" fill="${ok ? '#fffbe6' : COLS[k]}" opacity="${ok ? 1 : .85}"/>`; });
+          h += '</g>';
+        }
+        wrap.innerHTML = `<svg viewBox="0 0 ${N * CS} ${N * CS}" class="ly-svg${ok ? ' ok' : ''}">${h}</svg>`;
+        const row = el('div', 'ly-btns');
+        for (let k = 0; k < n; k++) {
+          const b = btn('btn ghost ly-b', `ЛИСТ ${k + 1} ↻`, () => { if (done) return; rot[k] = (rot[k] + 1) % 4; sfx('scrape'); draw(); });
+          b.dataset.k = k; b.style.borderColor = COLS[k]; b.style.color = COLS[k];
+          row.appendChild(b);
+        }
+        wrap.appendChild(row);
+        if (ok && !done) { done = true; sfx('clunk'); setTimeout(() => ctx.solve(), 700); }
+      };
+      A.append(wrap, el('p', 'note', v.layNote || 'Три прозрачных листа лежат на световом столе. Поворачивай листы, пока прорези не сложатся в надпись.'));
+      draw();
+      return { noCheck: true, empty: () => true, check: () => done };
+    },
+    /* --- провода детонатора: перерезать нужный по правилам схемы --- */
+    wires(v, A) {
+      let pick = null;
+      const n = v.wires.length, H = 40 + n * 44;
+      const wrap = el('div', 'wires');
+      const draw = () => {
+        let h = `<rect width="520" height="${H}" rx="10" fill="#15181c" stroke="#555" stroke-width="3"/>
+          <rect x="16" y="16" width="56" height="${H - 32}" rx="6" fill="#222" stroke="#888" stroke-width="2"/><rect x="448" y="16" width="56" height="${H - 32}" rx="6" fill="#222" stroke="#888" stroke-width="2"/>
+          <circle cx="476" cy="30" r="6" fill="${v.cut ? '#2a2a2a' : '#ff2a2a'}" class="wr-led"/><text x="44" y="${H - 22}" font-family="monospace" font-size="10" text-anchor="middle" fill="#888">ЯЧЕЙКА</text><text x="476" y="${H - 22}" font-family="monospace" font-size="10" text-anchor="middle" fill="#888">КАПСЮЛЬ</text>`;
+        v.wires.forEach((w, i) => {
+          const y = 36 + i * 44, c = WIRE[w] || '#999', sel = pick === i;
+          const d = `M72 ${y}C160 ${y + (i % 2 ? 18 : -18)} 240 ${y + (i % 3 - 1) * 16} 300 ${y}S400 ${y + (i % 2 ? -14 : 14)} 448 ${y}`;
+          h += `<g class="wr${sel ? ' sel' : ''}" data-i="${i}"><path d="${d}" stroke="transparent" stroke-width="30" fill="none"/>
+            <path d="${d}" stroke="#000" stroke-width="12" fill="none"/><path d="${d}" stroke="${c}" stroke-width="8" fill="none"/>${w === 'чёрный' ? `<path d="${d}" stroke="#444" stroke-width="1.5" fill="none" stroke-dasharray="2 6"/>` : ''}
+            <rect x="64" y="${y - 6}" width="12" height="12" fill="#999" stroke="#000"/><rect x="444" y="${y - 6}" width="12" height="12" fill="#999" stroke="#000"/>
+            <text x="92" y="${y - 10}" font-family="Russo One, Arial Black, sans-serif" font-size="11" fill="#aaa">${i + 1}</text>
+            ${sel ? `<g transform="translate(300 ${y})"><circle r="15" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4 3"/><path d="M-8 -10L6 6M8 -10L-6 6" stroke="#fff" stroke-width="3"/><circle cx="-8" cy="9" r="4" fill="none" stroke="#fff" stroke-width="2"/><circle cx="8" cy="9" r="4" fill="none" stroke="#fff" stroke-width="2"/></g>` : ''}</g>`;
+        });
+        wrap.innerHTML = `<svg viewBox="0 0 520 ${H}" class="wr-svg">${h}</svg><p class="spot-count">${pick === null ? 'Нажми на провод, который будешь резать.' : `Выбран провод №${pick + 1}: ${v.wires[pick]}.`}</p>`;
+      };
+      wrap.addEventListener('click', e => { const g = e.target.closest('.wr'); if (!g) return; pick = +g.dataset.i; sfx('click'); draw(); });
+      A.appendChild(wrap); draw();
+      return { empty: () => pick === null, emptyMsg: 'Сначала выбери провод.', check: () => pick === v.answer ? true : (v.wrongCut || 'Искра! Таймер на капсюле дёрнулся и пошёл быстрее. Не тот провод.') };
+    },
+    /* --- замена символов: расшифровать передачу по неполному ключу --- */
+    subst(v, A) {
+      const text = v.text, letters = [...new Set(text.replace(/\s/g, '').split(''))];
+      const perm = letters.map((_, i) => (i * 7 + (v.seed || 3)) % 26);
+      const gi = ch => perm[letters.indexOf(ch)];
+      const given = new Set((v.given || '').split(''));
+      const val = {}; letters.forEach(l => { if (given.has(l)) val[l] = l; });
+      const wrap = el('div', 'subst');
+      const msg = el('div', 'sb-msg'), key = el('div', 'sb-key');
+      const drawMsg = () => {
+        msg.innerHTML = text.split(' ').map(w => `<span class="sb-word">${w.split('').map(ch => `<span class="sb-c${given.has(ch) ? ' given' : ''}">${pigGlyph(gi(ch))}<b>${val[ch] || '·'}</b></span>`).join('')}</span>`).join('');
+      };
+      letters.forEach(l => {
+        const cell = el('label', 'sb-k' + (given.has(l) ? ' given' : ''));
+        cell.innerHTML = pigGlyph(gi(l));
+        const inp = el('input'); inp.type = 'text'; inp.maxLength = 1; inp.autocomplete = 'off'; inp.spellcheck = false;
+        inp.dataset.g = gi(l); inp.setAttribute('aria-label', 'Буква для символа');
+        if (given.has(l)) { inp.value = l; inp.disabled = true; }
+        inp.oninput = () => { const c = inp.value.toUpperCase().replace(/Ё/g, 'Е').replace(/[^А-Я]/g, '').slice(-1); inp.value = c; if (c) val[l] = c; else delete val[l]; sfx('key'); drawMsg(); };
+        cell.appendChild(inp); key.appendChild(cell);
+      });
+      wrap.append(el('div', 'order-h', 'ПЕРЕДАЧА'), msg, el('div', 'order-h', 'КЛЮЧ: ВПИШИ БУКВЫ ПОД НЕИЗВЕСТНЫМИ ЗНАКАМИ'), key);
+      A.appendChild(wrap); drawMsg();
+      return {
+        empty: () => letters.every(l => given.has(l) || !val[l]), emptyMsg: 'Впиши хотя бы одну букву в ключ.',
+        check: () => { const ok = letters.filter(l => val[l] === l).length; return ok === letters.length ? true : `Текст не складывается. Верных знаков в ключе: ${ok} из ${letters.length}.`; }
+      };
+    },
+    /* --- карта подземки: проложить маршрут курьера --- */
+    route(v, A) {
+      const N = {}; v.nodes.forEach(n => { N[n.id] = n; });
+      const open = (a, b) => v.edges.some(e => !e[2] && ((e[0] === a && e[1] === b) || (e[0] === b && e[1] === a)));
+      let path = [v.start];
+      const wrap = el('div', 'route');
+      const draw = () => {
+        let h = `<rect width="${v.w || 600}" height="${v.h || 380}" fill="#0d1014"/><g stroke="#161b22" stroke-width="1">${Array.from({ length: 16 }, (_, i) => `<path d="M${i * 40} 0V400M0 ${i * 40}H640"/>`).join('')}</g>`;
+        v.edges.forEach(e => {
+          const a = N[e[0]], b = N[e[1]];
+          h += e[2] ? `<path d="M${a.x} ${a.y}L${b.x} ${b.y}" stroke="#4a4a4a" stroke-width="6" stroke-dasharray="8 8"/><g transform="translate(${(a.x + b.x) / 2} ${(a.y + b.y) / 2})"><circle r="11" fill="#0d1014" stroke="${A_RED}" stroke-width="2"/><path d="M-5 -5L5 5M5 -5L-5 5" stroke="${A_RED}" stroke-width="3"/></g>`
+            : `<path d="M${a.x} ${a.y}L${b.x} ${b.y}" stroke="${e[3] || '#6a7a8a'}" stroke-width="7" stroke-linecap="round"/>`;
+        });
+        for (let i = 1; i < path.length; i++) { const a = N[path[i - 1]], b = N[path[i]]; h += `<path d="M${a.x} ${a.y}L${b.x} ${b.y}" stroke="#ffd400" stroke-width="5" stroke-linecap="round" class="rt-path"/>`; }
+        v.nodes.forEach(n => {
+          const inP = path.includes(n.id), last = path[path.length - 1] === n.id, can = !inP && open(path[path.length - 1], n.id);
+          h += `<g class="rt-n${can ? ' can' : ''}${inP ? ' in' : ''}" data-id="${n.id}"><circle cx="${n.x}" cy="${n.y}" r="22" fill="transparent"/>
+            <circle cx="${n.x}" cy="${n.y}" r="${last ? 12 : 10}" fill="${inP ? '#ffd400' : '#0d1014'}" stroke="${n.id === v.start || n.id === v.end ? '#fff' : '#cfd6de'}" stroke-width="${n.id === v.end ? 5 : 3}"/>
+            ${n.mark ? `<g transform="translate(${n.x + 16} ${n.y - 16})"><circle r="9" fill="#0d1014" stroke="${A_RED}" stroke-width="2.5"/><path d="M-5 6L0 -6L5 6M-3 2H3" stroke="${A_RED}" stroke-width="2.2" fill="none"/></g>` : ''}
+            <text x="${n.x + (n.lx || 0)}" y="${n.y + (n.ly || 30)}" font-family="Russo One, Arial Black, sans-serif" font-size="12" text-anchor="middle" fill="${inP ? '#ffd400' : '#ddd'}" paint-order="stroke" stroke="#0d1014" stroke-width="4">${n.name}</text></g>`;
+        });
+        wrap.innerHTML = `<svg viewBox="0 0 ${v.w || 600} ${v.h || 380}" class="rt-svg">${h}</svg>`;
+        const row = el('div', 'mech-row');
+        row.append(btn('btn ghost', '↶ НАЗАД', () => { if (path.length > 1) { path.pop(); sfx('scrape'); draw(); } }), btn('btn ghost', 'СБРОС', () => { path = [v.start]; sfx('scrape'); draw(); }));
+        wrap.append(row, el('p', 'spot-count', 'Маршрут: ' + path.map(id => N[id].name).join(' → ')));
+      };
+      wrap.addEventListener('click', e => {
+        const g = e.target.closest('.rt-n'); if (!g) return;
+        const id = g.dataset.id, last = path[path.length - 1];
+        if (id === last && path.length > 1) { path.pop(); sfx('scrape'); draw(); return; }
+        if (path.includes(id)) return;
+        if (!open(last, id)) { $('mFeedback').textContent = v.edges.some(x => x[2] && ((x[0] === last && x[1] === id) || (x[1] === last && x[0] === id))) ? 'Перегон закрыт: завал.' : 'Между этими станциями нет пути.'; sfx('wrong'); return; }
+        $('mFeedback').textContent = '';
+        path.push(id); sfx('tick'); draw();
+      });
+      A.appendChild(wrap); draw();
+      return {
+        empty: () => path.length < 2, emptyMsg: 'Проложи маршрут: нажимай на соседние станции.',
+        check: () => {
+          if (path[path.length - 1] !== v.end) return `Маршрут должен кончаться на станции «${N[v.end].name}».`;
+          const miss = v.nodes.filter(n => n.mark && !path.includes(n.id));
+          if (miss.length) return `Курьер проходил все тайники. Пропущено: ${miss.map(n => '«' + n.name + '»').join(', ')}.`;
+          return true;
+        }
+      };
+    },
+    /* --- логическая таблица: кто к какому фидеру подключён --- */
+    logic(v, A) {
+      const R = v.rows.length, Cn = v.cols.length, m = v.rows.map(() => v.cols.map(() => 0));
+      const wrap = el('div', 'logic');
+      const draw = () => {
+        let h = `<table class="lg-t"><tr><th></th>${v.cols.map(c => `<th>${c}</th>`).join('')}</tr>`;
+        v.rows.forEach((r, i) => { h += `<tr><th>${r}</th>${v.cols.map((_, j) => `<td><button type="button" class="lg-c s${m[i][j]}" data-i="${i}" data-j="${j}" aria-label="${r} — ${v.cols[j]}">${['', '✗', '✓'][m[i][j]]}</button></td>`).join('')}</tr>`; });
+        wrap.innerHTML = h + '</table><p class="note">Нажимай на клетку: пусто → ✗ (точно нет) → ✓ (точно да).</p>';
+      };
+      wrap.addEventListener('click', e => { const b = e.target.closest('.lg-c'); if (!b) return; const i = +b.dataset.i, j = +b.dataset.j; m[i][j] = (m[i][j] + 1) % 3; sfx('tick'); draw(); });
+      A.appendChild(wrap); draw();
+      return {
+        empty: () => !m.some(r => r.includes(2)), emptyMsg: 'Поставь хотя бы одну галочку ✓.',
+        check: () => {
+          const rows = m.map(r => r.indexOf(2)), many = m.some(r => r.filter(x => x === 2).length > 1);
+          if (many) return 'В каждой строке может быть только одна галочка: одно здание — один фидер.';
+          if (rows.some(x => x < 0)) return 'Не у всех зданий отмечен фидер.';
+          const ok = rows.filter((x, i) => x === v.solution[i]).length;
+          return ok === R ? true : `Схема не сходится. Верных строк: ${ok} из ${R}.`;
+        }
+      };
+    },
+    /* --- щит рубильников: каждый тянет за собой соседей --- */
+    lights(v, A, ctx) {
+      const n = v.n || 4;
+      const g0 = Array.from({ length: n }, () => Array(n).fill(1));
+      const press = (g, r, c) => [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dr, dc]) => { const rr = r + dr, cc = c + dc; if (rr >= 0 && cc >= 0 && rr < n && cc < n) g[rr][cc] ^= 1; });
+      v.presses.forEach(([r, c]) => press(g0, r, c));
+      let g = g0.map(r => r.slice()), moves = 0, done = false;
+      const wrap = el('div', 'lights');
+      const draw = () => {
+        const on = g.flat().filter(Boolean).length;
+        let h = '';
+        g.forEach((row, r) => row.forEach((x, c) => {
+          const X = c * 70, Y = r * 80;
+          h += `<g class="lt${x ? ' on' : ''}" data-r="${r}" data-c="${c}"><rect x="${X + 6}" y="${Y + 6}" width="58" height="68" rx="6" fill="#1b1e22" stroke="#555" stroke-width="2"/>
+            <rect x="${X + 26}" y="${Y + 16}" width="18" height="48" rx="4" fill="#0b0c0e" stroke="#333"/>
+            <rect x="${X + 22}" y="${x ? Y + 14 : Y + 44}" width="26" height="22" rx="4" fill="${x ? '#2fae5a' : '#d0142c'}" stroke="#000" stroke-width="2"/>
+            <circle cx="${X + 56}" cy="${Y + 14}" r="4" fill="${x ? '#9fff8a' : '#3a1010'}"/></g>`;
+        }));
+        wrap.innerHTML = `<svg viewBox="0 0 ${n * 70} ${n * 80}" class="lt-svg">${h}</svg><p class="spot-count">Линий в норме: ${on} из ${n * n} · ходов: ${moves}</p>`;
+        const row = el('div', 'mech-row'); row.appendChild(btn('btn ghost', 'ВЕРНУТЬ КАК БЫЛО', () => { if (done) return; g = g0.map(r => r.slice()); moves = 0; sfx('scrape'); draw(); }));
+        wrap.appendChild(row);
+      };
+      wrap.addEventListener('click', e => {
+        if (done) return;
+        const t = e.target.closest('.lt'); if (!t) return;
+        press(g, +t.dataset.r, +t.dataset.c); moves++; sfx('clunk'); draw();
+        if (g.every(r => r.every(Boolean))) { done = true; sfx('ok'); setTimeout(() => ctx.solve(), 600); }
+      });
+      A.append(wrap, el('p', 'note', v.ltNote || 'Каждый рубильник перекидывает себя и соседей сверху, снизу, слева и справа. Подними все в зелёное.'));
+      draw();
+      return { noCheck: true, empty: () => true, check: () => done };
+    },
+    /* --- графический ключ 3×3 --- */
+    pattern(v, A) {
+      let seq = [];
+      const P = i => [40 + ((i - 1) % 3) * 80, 40 + Math.floor((i - 1) / 3) * 80];
+      const wrap = el('div', 'pattern');
+      const draw = () => {
+        let h = `<rect width="240" height="240" rx="16" fill="#0c1116" stroke="#3a4a5a" stroke-width="3"/>`;
+        (v.smudge || []).forEach(i => { const [x, y] = P(i); h += `<ellipse cx="${x + 3}" cy="${y + 2}" rx="20" ry="15" fill="#c8d4e0" opacity=".09" transform="rotate(${i * 37} ${x} ${y})"/>`; });
+        (v.streaks || []).forEach(([a, b]) => { const [x1, y1] = P(a), [x2, y2] = P(b); h += `<path d="M${x1} ${y1}L${x2} ${y2}" stroke="#c8d4e0" stroke-width="10" opacity=".06" stroke-linecap="round"/>`; });
+        for (let i = 1; i < seq.length; i++) { const [x1, y1] = P(seq[i - 1]), [x2, y2] = P(seq[i]); h += `<path d="M${x1} ${y1}L${x2} ${y2}" stroke="#ffd400" stroke-width="6" stroke-linecap="round"/>`; }
+        for (let i = 1; i <= 9; i++) { const [x, y] = P(i), on = seq.includes(i); h += `<g class="pd" data-i="${i}"><circle cx="${x}" cy="${y}" r="30" fill="transparent"/><circle cx="${x}" cy="${y}" r="${on ? 12 : 8}" fill="${on ? '#ffd400' : '#cfd6de'}"/>${on ? `<text x="${x + 16}" y="${y - 12}" font-family="Russo One, Arial Black, sans-serif" font-size="11" fill="#ffd400">${seq.indexOf(i) + 1}</text>` : ''}</g>`; }
+        wrap.innerHTML = `<svg viewBox="0 0 240 240" class="pd-svg">${h}</svg>`;
+        const row = el('div', 'mech-row'); row.appendChild(btn('btn ghost', 'СБРОС', () => { seq = []; sfx('scrape'); draw(); }));
+        wrap.appendChild(row);
+      };
+      wrap.addEventListener('click', e => { const g = e.target.closest('.pd'); if (!g) return; const i = +g.dataset.i; if (seq.includes(i)) return; seq.push(i); sfx('beep'); draw(); });
+      A.appendChild(wrap); draw();
+      return { empty: () => seq.length < 2, emptyMsg: 'Проведи узор: нажимай на точки по порядку.', check: () => seq.join() === v.answer.join() ? true : (seq.slice().sort().join() === v.answer.slice().sort().join() ? 'Точки те, но порядок не тот. Экран мигнул красным.' : false) };
+    },
+    /* --- захват: решения на время --- */
+    qte(v, A, ctx) {
+      const T = v.time || 6;
+      let k = 0, tm = 0, raf = 0, t0 = 0, live = false;
+      const wrap = el('div', 'qte');
+      const stop = () => { clearTimeout(tm); cancelAnimationFrame(raf); live = false; };
+      current.cleanup.push(stop);
+      const fail = msg => { stop(); sfx('wrong'); wrap.innerHTML = `<div class="qt-fail"><p>${msg}</p></div>`; const b = btn('btn', 'ЕЩЁ РАЗ', () => { k = 0; step(); }); b.classList.add('qt-retry'); wrap.appendChild(b); wrong(v.failSay || null); };
+      const step = () => {
+        stop();
+        if (k >= v.steps.length) { wrap.innerHTML = `<div class="qt-win">${v.winText || 'Попался.'}</div>`; sfx('ok'); setTimeout(() => ctx.solve(), 700); return; }
+        const s = v.steps[k];
+        const order = s.options.map((_, i) => i).sort((a, b) => ((a * 7 + k * 3) % 5) - ((b * 7 + k * 3) % 5));
+        wrap.innerHTML = `<div class="qt-top"><span>${k + 1} / ${v.steps.length}</span><i class="qt-bar"><b></b></i></div><p class="qt-text">${s.text}</p><div class="qt-opts"></div>`;
+        const box = wrap.querySelector('.qt-opts'), bar = wrap.querySelector('.qt-bar b');
+        order.forEach(i => { const b = btn('opt qt-o', s.options[i], () => { if (!live) return; if (i === s.answer) { sfx('tick'); k++; step(); } else fail(s.fail || 'Не то. Он ушёл в темноту.'); }); b.dataset.i = i; box.appendChild(b); });
+        live = true; t0 = performance.now();
+        const tick = now => { const p = Math.min(1, (now - t0) / (T * 1000)); bar.style.width = (100 - p * 100) + '%'; if (p < 1) raf = requestAnimationFrame(tick); };
+        raf = requestAnimationFrame(tick);
+        tm = setTimeout(() => fail(s.late || 'Слишком долго. Он ушёл в темноту.'), T * 1000);
+      };
+      wrap.innerHTML = `<p class="qt-text">${v.intro || ''}</p>`;
+      const go = btn('btn', v.startLabel || 'НАЧАТЬ', () => step()); go.classList.add('qt-go');
+      wrap.appendChild(go);
+      A.appendChild(wrap);
+      return { noCheck: true, empty: () => true, check: () => false };
+    }
+  });
+
+
   function options(v, A, many) {
     const sel = new Set();
     const box = el('div', 'opts');
@@ -1171,7 +1460,7 @@
 
   function hintLabel() {
     const lv = st.hintLevel[current.clue.id] || 0;
-    $('mHint').textContent = lv === 0 ? 'СПРОСИТЬ БЭТМЕНА (−очки)' : lv < 3 ? `ЕЩЁ ПОДСКАЗКА (${lv}/3)` : 'ПОВТОРИТЬ ПОДСКАЗКУ (3/3)';
+    $('mHint').textContent = lv === 0 ? `СПРОСИТЬ ${C.helper ? C.helper.ask : 'БЭТМЕНА'} (−очки)` : lv < 3 ? `ЕЩЁ ПОДСКАЗКА (${lv}/3)` : 'ПОВТОРИТЬ ПОДСКАЗКУ (3/3)';
   }
 
   function hint() {
@@ -1238,6 +1527,8 @@
     $('notesEmpty').hidden = false;
     $('detBtn').setAttribute('aria-pressed', 'false');
     $('case').classList.remove('det');
+    $('batFace').innerHTML = helperArt();
+    document.body.classList.toggle('helper-oracle', !!C.helper);
     show('case');
     document.body.classList.add('in-case');
     if (window.Sound) Sound.play(C.music || 'noir');
@@ -1306,8 +1597,11 @@
     const unlock = () => { if (window.Sound) { Sound.unlock(); applySettings(); } };
     document.addEventListener('pointerdown', unlock, { capture: true });
     document.addEventListener('keydown', unlock, { capture: true });
-    if (window.Sound) Sound.play('intro');
-    roadCtl = Pixel.road($('road'));
+    const burning = (() => { try { return localStorage.getItem('gcf_burning') === '1'; } catch (_) { return false; } })();
+    document.body.classList.toggle('burning', burning);
+    if (window.Sound) Sound.play(burning ? 'ashes' : 'intro');
+    if (burning) $('pxSub').textContent = 'Ночь после полуночи. Сирены.';
+    roadCtl = burning && Pixel.burning ? Pixel.burning($('road')) : Pixel.road($('road'));
     // папки дел: учебные дела и сюжетная кампания
     const stack = $('stack');
     const chooseCase = cs => { C = cs; $('files').hidden = true; $('chapter').hidden = true; $('diffCase').textContent = (cs.campaign ? 'ГЛАВА ' + 'I'.repeat(cs.chapter) + ' · ДЕЛО ' + cs.no : 'ДЕЛО №' + cs.no) + ' · ' + cs.title; $('diff').hidden = false; diffFrom = cs.campaign ? 'chapter' : 'files'; };
@@ -1367,7 +1661,7 @@
         diff = k;
         dl.querySelectorAll('button').forEach(x => x.disabled = true);
         $('diff').classList.add('go');
-        $('pxSub').textContent = 'Полный газ!';
+        $('pxSub').textContent = document.body.classList.contains('burning') ? 'Сквозь дым — к следующему делу.' : 'Полный газ!';
         sfx('boost');
         roadCtl.boost(() => { roadCtl.stop(); startCase(); });
       };
@@ -1376,7 +1670,7 @@
     $('diffBack').onclick = e => { e.stopPropagation(); $('diff').hidden = true; $(diffFrom).hidden = false; };
 
     let shown = false;
-    const reveal = () => { if (shown) return; shown = true; $('files').hidden = false; $('pxSub').textContent = 'Капитан Гордон передал папки. Стажировка продолжается.'; };
+    const reveal = () => { if (shown) return; shown = true; $('files').hidden = false; $('pxSub').textContent = burning ? 'Готэм горит. Пять башен «Уэйн Энтерпрайзес» в огне. Бэт-сигнал сегодня не зажгут.' : 'Капитан Гордон передал папки. Стажировка продолжается.'; };
     setTimeout(reveal, 2600);
     $('intro').addEventListener('click', reveal);
 

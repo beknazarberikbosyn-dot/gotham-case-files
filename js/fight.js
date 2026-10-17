@@ -30,11 +30,38 @@
     // надпись на стене
     g.fillStyle = '#fff'; g.font = '14px "Russo One", Arial Black, sans-serif'; g.textAlign = 'left';
     g.fillText('АРКХЕМ-ИСТ · ЛАБОРАТОРИЯ', 40, 32);
+    // трубы под потолком и лампы дневного света с конусами
+    g.fillStyle = '#1c242b'; g.fillRect(0, 46, W, 9); g.fillStyle = '#2c3842'; g.fillRect(0, 46, W, 3);
+    for (let x = 20; x < W; x += 110) { g.fillStyle = '#3a4650'; g.fillRect(x, 43, 8, 15); }
+    [150, 650].forEach(x => {
+      g.fillStyle = '#e8fff8'; g.fillRect(x - 60, 62, 120, 6);
+      const gr = g.createLinearGradient(0, 68, 0, G); gr.addColorStop(0, 'rgba(220,255,245,.15)'); gr.addColorStop(1, 'rgba(220,255,245,0)');
+      g.fillStyle = gr; g.beginPath(); g.moveTo(x - 60, 68); g.lineTo(x + 60, 68); g.lineTo(x + 150, G); g.lineTo(x - 150, G); g.closePath(); g.fill();
+    });
+    // вентиляция, из которой вытекла глина
+    g.fillStyle = '#111'; g.fillRect(248, 66, 44, 28); g.strokeStyle = '#fff'; g.lineWidth = 2; g.strokeRect(248, 66, 44, 28);
+    g.strokeStyle = '#555'; g.lineWidth = 3; for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(252, 72 + i * 6); g.lineTo(288, 72 + i * 6); g.stroke(); }
+    g.strokeStyle = '#8a7860'; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.moveTo(262, 94); g.quadraticCurveTo(258, 130, 266, 160); g.stroke(); g.lineWidth = 5; g.beginPath(); g.moveTo(280, 94); g.lineTo(280, 116); g.stroke(); g.lineCap = 'butt';
+    // знак биоопасности
+    g.save(); g.translate(530, 190); g.fillStyle = YEL; g.strokeStyle = '#000'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(0, -22); g.lineTo(22, 16); g.lineTo(-22, 16); g.closePath(); g.fill(); g.stroke();
+    g.lineWidth = 2; [0, 2.094, 4.189].forEach(a => { g.beginPath(); g.arc(Math.sin(a) * 6, 4 - Math.cos(a) * 6, 4, 0, Math.PI * 2); g.stroke(); }); g.restore();
+    // лабораторный стол с микроскопом и пробирками
+    g.fillStyle = '#ddd'; g.fillRect(250, 300, 230, 8); g.strokeStyle = '#fff'; g.lineWidth = 4;
+    g.beginPath(); g.moveTo(262, 308); g.lineTo(262, G); g.moveTo(468, 308); g.lineTo(468, G); g.stroke();
+    g.strokeStyle = '#ddd'; g.lineWidth = 5; g.beginPath(); g.moveTo(290, 298); g.lineTo(290, 262); g.quadraticCurveTo(290, 254, 280, 250); g.stroke();
+    g.fillStyle = '#222'; g.fillRect(270, 244, 18, 10); g.fillStyle = '#ddd'; g.fillRect(278, 294, 30, 6);
+    ['#d6283c', '#2850dc', '#c4a0b4', '#2fae5a', '#e8e8e8'].forEach((c, i) => { g.fillStyle = c; g.fillRect(340 + i * 10, 276, 6, 22); g.strokeStyle = '#fff'; g.lineWidth = 1; g.strokeRect(340 + i * 10, 276, 6, 22); });
+    g.fillStyle = '#ccc'; g.fillRect(336, 290, 54, 4);
+    g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(420, 298); g.lineTo(426, 270); g.lineTo(440, 270); g.lineTo(446, 298); g.closePath(); g.stroke();
+    g.fillStyle = 'rgba(196,160,180,.75)'; g.beginPath(); g.moveTo(422, 296); g.lineTo(425, 284); g.lineTo(441, 284); g.lineTo(444, 296); g.closePath(); g.fill();
     // пол
     g.fillStyle = '#0e0e0e'; g.fillRect(0, G, W, H - G);
     g.strokeStyle = '#fff'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, G); g.lineTo(W, G); g.stroke();
     g.strokeStyle = '#1c1c1c'; g.lineWidth = 2;
     for (let i = 0; i < 10; i++) { g.beginPath(); g.moveTo(i * 90, G); g.lineTo(i * 90 - 50, H); g.stroke(); }
+    // лужи глины и отблески ламп на полу
+    g.fillStyle = 'rgba(138,120,96,.55)'; g.beginPath(); g.ellipse(270, G + 20, 40, 6, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(220,255,245,.06)'; [150, 650].forEach(x => { g.beginPath(); g.ellipse(x, G + 30, 110, 10, 0, 0, Math.PI * 2); g.fill(); });
     // точечный растр
     g.fillStyle = 'rgba(255,255,255,.035)';
     for (let y = 0; y < H; y += 7) for (let x = (y / 7) % 2 ? 3 : 0; x < W; x += 7) g.fillRect(x, y, 1.6, 1.6);

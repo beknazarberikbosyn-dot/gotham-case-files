@@ -312,6 +312,136 @@
     };
   }
 
+  /* ---------- горящий Готэм: после дела «Пятьдесят свечей» ---------- */
+  function emergency(c, v, t) {
+    const x = Math.round(v.x), y = Math.round(v.y), d = v.dir;
+    const R = (col, a, b, w, h) => { c.fillStyle = col; c.fillRect(d > 0 ? x + a : x - a - w, y + b, w, h); };
+    const blink = (t >> 2) % 2;
+    const wheel = wx => { R('#000', wx - 4, -5, 8, 6); R('#3a3a3a', wx - 2, -4, 4, 3); R('#888', wx - 1, -3, 1, 1); };
+    if (v.kind === 'fire') {
+      R('#7a0f18', 0, -16, 60, 13); R('#c81e2b', 1, -15, 58, 11); R('#e8e8e8', 1, -9, 58, 2);
+      R('#c81e2b', 46, -20, 14, 6); R('#9fc0d8', 50, -19, 8, 4); R('#e8e8e8', 59, -12, 2, 4);
+      R('#9a9a9a', 4, -19, 40, 2); for (let i = 0; i < 8; i++) R('#cfcfcf', 6 + i * 5, -20, 1, 4);
+      R(blink ? '#ff3030' : '#ffd23f', 47, -22, 4, 2); R(blink ? '#ffd23f' : '#ff3030', 54, -22, 4, 2);
+      wheel(10); wheel(26); wheel(50);
+    } else if (v.kind === 'amb') {
+      R('#d8d8d8', 0, -18, 34, 15); R('#efefef', 1, -17, 32, 13); R('#d0142c', 1, -9, 32, 2);
+      R('#d0142c', 13, -15, 6, 2); R('#d0142c', 15, -17, 2, 6);
+      R('#efefef', 34, -13, 12, 10); R('#9fc0d8', 37, -12, 7, 4); R('#efefef', 45, -8, 2, 4);
+      R(blink ? '#ff3030' : '#3a6bff', 2, -20, 4, 2); R(blink ? '#3a6bff' : '#ff3030', 28, -20, 4, 2);
+      wheel(8); wheel(38);
+    } else {
+      R('#0c0c10', 0, -9, 42, 7); R('#e8e8e8', 12, -9, 16, 6); R('#0c0c10', 10, -14, 22, 5); R('#9fc0d8', 13, -13, 7, 3); R('#9fc0d8', 22, -13, 7, 3);
+      R(blink ? '#ff2a2a' : '#5a1010', 14, -16, 6, 2); R(blink ? '#1a2a5a' : '#3a6bff', 22, -16, 6, 2);
+      R('#fff2a8', 41, -7, 2, 2); R('#c81e2b', 0, -7, 1, 2);
+      wheel(8); wheel(34);
+    }
+    // отсвет мигалок на асфальте
+    c.fillStyle = blink ? 'rgba(255,60,60,.16)' : 'rgba(80,120,255,.14)';
+    c.fillRect(x - 30 * (d > 0 ? 0 : 1) - 6, y + 1, 70, 3);
+  }
+  function burning(canvas) {
+    const c = canvas.getContext('2d');
+    c.imageSmoothingEnabled = false;
+    const far = makeSkyline(7, 34, 74, 520), near = makeSkyline(21, 22, 52, 560);
+    const r = rng(77);
+    const towers = [26, 88, 150, 214, 284].map((x, i) => ({ x, w: 14 + (i % 2) * 4, h: 70 + (i * 13) % 26 }));
+    const ash = Array.from({ length: 90 }, () => ({ x: r() * W, y: r() * H, v: 0.25 + r() * 0.5, s: r() < 0.2 ? 2 : 1 }));
+    const sparks = Array.from({ length: 50 }, () => ({ t: towers[Math.floor(r() * 5)], x: 0, y: 0, life: r() * 60 }));
+    const smoke = Array.from({ length: 34 }, (_, i) => ({ t: towers[i % 5], k: r(), y: 0, life: r() * 300 }));
+    const cars = [];
+    let off = 0, frame = 0, raf = 0, white = 0, boostT = -1, done = null, spawn = 0, last = performance.now(), acc = 0;
+    const KINDS = ['fire', 'police', 'amb', 'police', 'fire', 'amb'];
+    let ki = 0;
+    function addCar() {
+      const dir = cars.filter(v => v.dir > 0).length <= cars.filter(v => v.dir < 0).length ? 1 : -1;
+      const kind = KINDS[ki++ % KINDS.length];
+      cars.push({ kind, dir, x: dir > 0 ? -70 : W + 70, y: dir > 0 ? 152 : 172, v: (kind === 'police' ? 3.2 : kind === 'amb' ? 2.6 : 2) * (0.85 + Math.random() * 0.3) });
+    }
+    function layer(sk, par, base, col, wcol) {
+      const o = (off * par) % sk.total;
+      sk.b.forEach(b => {
+        let x = b.x - o; if (x < -40) x += sk.total;
+        if (x > W) return;
+        x = Math.round(x);
+        c.fillStyle = col; c.fillRect(x, base - b.h, b.w, b.h);
+        c.fillStyle = wcol;
+        b.wins.forEach((w, k) => { if ((k * 5 + b.x) % 3) return; c.fillRect(x + w[0], base - b.h + w[1], 1, 2); });
+      });
+    }
+    function flameAt(x, y, w, k) {
+      for (let i = 0; i < w; i++) {
+        const h = 3 + ((i * 7 + frame + k * 13) % 5) + Math.round(Math.sin(frame * 0.3 + i + k) * 2);
+        c.fillStyle = '#d0142c'; c.fillRect(x + i, y - h - 2, 1, h + 2);
+        c.fillStyle = '#ff6a1f'; c.fillRect(x + i, y - h + 1, 1, Math.max(1, h - 1));
+        if (i % 2 === k % 2) { c.fillStyle = '#ffd23f'; c.fillRect(x + i, y - Math.max(1, h - 3), 1, Math.max(1, h - 3)); }
+      }
+    }
+    function step() {
+      frame++; off += 0.35;
+      if (++spawn > 70 && cars.length < 5) { spawn = Math.random() < 0.5 ? 0 : 30; addCar(); }
+      cars.forEach(v => { v.x += v.v * v.dir; });
+      for (let i = cars.length - 1; i >= 0; i--) if (cars[i].x < -90 || cars[i].x > W + 90) cars.splice(i, 1);
+      if (boostT >= 0) { boostT++; if (boostT > 30) white = Math.min(1, white + 0.04); if (boostT > 60 && done) { const d = done; done = null; d(); } }
+    }
+    function draw() {
+      const bands = ['#2a2729', '#38302f', '#4d2e2f', '#6a2228', '#8c1f26', '#a8302a'];
+      bands.forEach((b, i) => { c.fillStyle = b; c.fillRect(0, i * 21, W, 22); });
+      // зарево у горизонта
+      for (let i = 0; i < 6; i++) { c.fillStyle = `rgba(255,${90 + i * 10},40,${0.05 + i * 0.012})`; c.fillRect(0, 96 + i * 4, W, 4); }
+      // дым: тяжёлые клубы, медленно ползут вправо
+      smoke.forEach((p, i) => {
+        p.life += 0.6; if (p.life > 300) p.life = 0;
+        const t = p.life / 300, x = p.t.x + p.t.w / 2 + t * 70 * (0.6 + p.k) + Math.sin(frame * 0.02 + i) * 4, y = 122 - p.t.h - t * 110;
+        const rr = 6 + t * 22, col = t < 0.3 ? '#2a1e1e' : t < 0.7 ? '#4a4246' : '#5e5a5c';
+        ellipse(c, Math.round(x), Math.round(y), Math.round(rr), Math.round(rr * 0.6), col);
+      });
+      // штаб полиции: прожектор погашен
+      c.fillStyle = '#120c0d'; c.fillRect(196, 70, 22, 52); c.fillRect(200, 62, 14, 8); c.fillRect(205, 56, 4, 6);
+      c.fillStyle = '#3a2a2a'; c.fillRect(204, 54, 6, 3);
+      layer(far, 0.1, 122, '#1e1415', '#7a3a22');
+      // пять башен «Уэйн Энтерпрайзес» в огне
+      towers.forEach((tw, k) => {
+        const top = 122 - tw.h;
+        c.fillStyle = '#0d0909'; c.fillRect(tw.x, top, tw.w, tw.h); c.fillRect(tw.x + (tw.w >> 1) - 1, top - 6, 2, 6);
+        c.fillStyle = '#2a1a16'; c.fillRect(tw.x, top, 1, tw.h);
+        for (let wy = top + 4; wy < 118; wy += 5) for (let wx = tw.x + 2; wx < tw.x + tw.w - 2; wx += 3) { const lit = (wy * 3 + wx + (frame >> 3)) % 7 < 2; c.fillStyle = lit ? '#ff8a2a' : '#3a1a12'; c.fillRect(wx, wy, 1, 2); }
+        flameAt(tw.x - 1, top, tw.w + 2, k);
+        flameAt(tw.x + 2, top + 18 + (k * 7) % 20, 5, k + 3);
+      });
+      // искры над башнями
+      sparks.forEach(p => {
+        p.life += 1; if (p.life > 60) { p.life = 0; p.x = p.t.x + Math.random() * p.t.w; p.y = 122 - p.t.h - 2; }
+        c.fillStyle = p.life % 6 < 3 ? '#ffd23f' : '#ff6a1f';
+        c.fillRect(Math.round(p.x + Math.sin(p.life * 0.2) * 3 + p.life * 0.3), Math.round(p.y - p.life * 0.9), 1, 1);
+      });
+      layer(near, 0.28, 122, '#0a0708', '#5a2a18');
+      // тротуар и дорога с отблесками огня
+      c.fillStyle = '#1a1214'; c.fillRect(0, 122, W, 6); c.fillStyle = '#2b1d1d'; c.fillRect(0, 122, W, 1);
+      c.fillStyle = '#0b0809'; c.fillRect(0, 128, W, 52);
+      for (let i = 0; i < 18; i++) { c.fillStyle = `rgba(255,${80 + (i * 37) % 80},40,${0.04 + ((i * 13 + frame) % 9) / 120})`; c.fillRect((i * 53 + Math.round(off)) % (W + 40) - 20, 132 + (i * 11) % 44, 8 + (i % 4) * 5, 1); }
+      c.fillStyle = '#6a5a4a'; const d = Math.round(off) % 32; for (let x = -d; x < W; x += 32) c.fillRect(x, 163, 16, 2);
+      // машины экстренных служб
+      cars.slice().sort((a, b) => a.y - b.y).forEach(v => emergency(c, v, frame));
+      // пепел
+      ash.forEach(p => { p.y += p.v; p.x += Math.sin((p.y + frame) * 0.05) * 0.3 + 0.15; if (p.y > H) { p.y = -2; p.x = Math.random() * W; } c.fillStyle = p.s > 1 ? '#8a7a74' : '#5a4e4a'; c.fillRect(Math.round(p.x), Math.round(p.y), p.s, p.s); });
+      // дрожащая красная дымка
+      c.fillStyle = `rgba(120,20,20,${0.06 + Math.sin(frame * 0.07) * 0.03})`; c.fillRect(0, 0, W, H);
+      if (white > 0) { c.fillStyle = 'rgba(255,255,255,' + white + ')'; c.fillRect(0, 0, W, H); }
+    }
+    function loop(now) {
+      raf = requestAnimationFrame(loop);
+      acc += Math.min(100, now - last); last = now;
+      let n = 0;
+      while (acc >= 33 && n < 3) { step(); acc -= 33; n++; }
+      if (n) draw();
+    }
+    addCar(); cars[0].x = 60; addCar(); cars[1].x = 230;
+    step(); draw();
+    raf = requestAnimationFrame(loop);
+    return { boost(cb) { boostT = 0; done = cb; }, stop() { cancelAnimationFrame(raf); } };
+  }
+
   /* ---------- пещера ---------- */
   function cave(canvas) {
     const c = canvas.getContext('2d');
@@ -415,5 +545,5 @@
     }, 34);
   }
 
-  window.Pixel = { road, cave, wipe };
+  window.Pixel = { burning, road, cave, wipe };
 })();
