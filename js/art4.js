@@ -295,6 +295,10 @@
     <rect x="376" y="236" width="28" height="34" rx="4" fill="#111" stroke="#fff" stroke-width="3"/><path d="M382 236v-10q8 -12 16 0v10" stroke="#fff" stroke-width="3" fill="none"/>
     <g fill="#fff">${range(4).map(i => `<rect x="${380 + i * 6}" y="248" width="4" height="12" rx="1"/>`).join('')}</g>
     <path d="M398 270 q6 10 2 18" stroke="#fff" stroke-width="1.2" fill="none"/><g transform="rotate(14 402 296)"><rect x="392" y="286" width="22" height="16" fill="${PAPER}" stroke="#000" stroke-width="1"/><circle cx="396" cy="290" r="1.6" fill="#000"/><path d="M398 296h12" stroke="${RED}" stroke-width="1.5"/></g>
+    <!-- доска с приказом мэрии -->
+    <rect x="444" y="152" width="88" height="80" fill="#3a2a1c" stroke="#fff" stroke-width="2.5"/>
+    <g transform="rotate(-3 478 190)"><rect x="452" y="160" width="50" height="62" fill="${PAPER}" stroke="#000" stroke-width="1"/><text x="477" y="170" ${F} font-size="5.5" text-anchor="middle" fill="#000">ПРИКАЗ МЭРИИ</text><path d="M456 176h42M456 182h42M456 188h36M456 194h42M456 200h30" stroke="#777" stroke-width="1"/><circle cx="492" cy="212" r="5" fill="none" stroke="${RED}" stroke-width="1.5"/></g>
+    <rect x="506" y="164" width="20" height="26" fill="#fff" stroke="#000" stroke-width="1" transform="rotate(6 516 177)"/><circle cx="478" cy="158" r="2" fill="${RED}"/><circle cx="516" cy="163" r="2" fill="${RED}"/>
     <!-- вентиль спринклеров с цепью и пустым приводом -->
     <path d="M640 44v286" stroke="#fff" stroke-width="10"/>
     <rect x="652" y="236" width="40" height="34" fill="#111" stroke="#fff" stroke-width="2.5"/><circle cx="664" cy="253" r="4" fill="none" stroke="${RED}" stroke-width="2" stroke-dasharray="2 2"/><circle cx="680" cy="253" r="4" fill="none" stroke="${RED}" stroke-width="2" stroke-dasharray="2 2"/>
@@ -364,6 +368,10 @@
     <g fill="#000">${[[612, 172], [652, 172], [612, 204]].map(([x, y]) => `<path d="M${x} ${y}h24M${x} ${y + 6}h20M${x} ${y + 12}h22" stroke="#555" stroke-width="1.2"/>`).join('')}</g>
     <g transform="rotate(6 666 212)"><rect x="648" y="198" width="38" height="30" fill="#fff" stroke="${RED}" stroke-width="2"/><g fill="#1a0a06">${range(7).map(i => `<rect x="${651 + i * 5}" y="${205 + (i % 2) * 7}" width="3.5" height="5"/>`).join('')}</g><path d="M650 223q18 -4 34 0" stroke="#3a1208" stroke-width="2" fill="none"/><rect x="676" y="201" width="7" height="7" fill="none" stroke="#000" stroke-width="1"/><text x="679.5" y="207" ${MONO} font-size="6" text-anchor="middle">P</text></g>
     <g fill="${RED}">${[[612, 162], [652, 162], [612, 194], [664, 196]].map(([x, y]) => `<circle cx="${x + 12}" cy="${y + 4}" r="2.4"/>`).join('')}</g>
+    <!-- телевизор в зале ожидания -->
+    <path d="M108 60V92" stroke="#777" stroke-width="4"/><rect x="44" y="92" width="128" height="86" rx="6" fill="#1a1a1a" stroke="#fff" stroke-width="2.5"/>
+    <rect x="52" y="100" width="112" height="64" fill="#1d2c33"/><path d="M60 164Q76 128 100 132Q120 128 132 164Z" fill="#111"/><circle cx="98" cy="122" r="12" fill="#d8d0c0"/><path d="M86 118q12 -14 24 0" fill="#111"/>
+    <rect x="52" y="148" width="112" height="10" fill="${RED}"/><text x="56" y="156" ${MONO} font-size="7" fill="#fff">GCN · КОББЛПОТ ИДЁТ В МЭРЫ</text><text x="158" y="110" ${MONO} font-size="6" text-anchor="end" fill="#fff">LIVE</text>
     <!-- стойка регистратуры, журнал, монитор -->
     <path d="M20 300h250v100h-250z" fill="#000" stroke="#fff" stroke-width="4"/><path d="M20 300h250v100h-250z" fill="url(#hatch)" opacity=".2"/><path d="M14 292h262v10h-262z" fill="#fff"/>
     <g transform="rotate(-4 128 280)"><path d="M80 290 L84 266 H126 L128 290Z" fill="${PAPER}" stroke="#000" stroke-width="2"/><path d="M128 290 L130 266 H172 L176 290Z" fill="${PAPER}" stroke="#000" stroke-width="2"/>
@@ -427,6 +435,8 @@
       <g transform="rotate(-10 112 396)"><rect x="98" y="384" width="30" height="20" fill="#f4f0e0" stroke="#000" stroke-width="1"/><path d="M101 389h24" stroke="#000" stroke-width="2.5"/><path d="M101 395h14M101 399h18" stroke="#777" stroke-width="1"/><rect x="117" y="393" width="8" height="8" fill="#555"/></g>
       <g transform="rotate(8 150 394)"><rect x="136" y="382" width="32" height="20" fill="#f4f0e0" stroke="#000" stroke-width="1"/><path d="M139 387h26" stroke="#000" stroke-width="2.5"/><path d="M139 392h22M139 396h16" stroke="#777" stroke-width="1"/>${batShadow(152, 391, .03, '#000')}</g>
       <text x="137" y="415" ${MONO} font-size="7" text-anchor="middle" fill="#000">ВЫРЕЗКИ · МАЙ</text></g>
+    <!-- газета, забытая на платформе -->
+    <g transform="rotate(-8 508 426)"><rect x="470" y="406" width="78" height="44" fill="#e2d8bc" stroke="#000" stroke-width="1.5"/><text x="474" y="417" ${F} font-size="6.5" fill="#000">БЛАДХЕЙВЕН</text><path d="M474 422h40M474 427h36M474 432h40M474 437h28" stroke="#555" stroke-width="1.2"/><rect x="520" y="420" width="22" height="22" fill="#444"/><path d="M524 438l7 -12l7 12" stroke="#9cf" stroke-width="2" fill="none"/></g>
     <!-- урна с обрывками -->
     <ellipse cx="336" cy="468" rx="30" ry="6" fill="#000"/>
     <path d="M310 416 L316 468 H356 L362 416Z" fill="#111" stroke="#fff" stroke-width="3"/>
@@ -458,6 +468,10 @@
     <g stroke="#262626" stroke-width="2">${range(25).map(i => `<line x1="0" y1="${i * 20}" x2="300" y2="${i * 20}"/><line x1="500" y1="${i * 20}" x2="800" y2="${i * 20}"/>`).join('')}${range(25).map(i => range(8).map(j => `<line x1="${j * 40 + (i % 2) * 20}" y1="${i * 20}" x2="${j * 40 + (i % 2) * 20}" y2="${i * 20 + 20}"/><line x1="${500 + j * 40 + (i % 2) * 20}" y1="${i * 20}" x2="${500 + j * 40 + (i % 2) * 20}" y2="${i * 20 + 20}"/>`).join('')).join('')}</g>
     <circle cx="640" cy="330" r="200" fill="url(#fireGlow)"/>
     <path d="M300 0v500M500 0v500" stroke="#fff" stroke-width="3"/>
+    <!-- старая цирковая афиша -->
+    <g transform="rotate(-4 54 86)"><rect x="18" y="40" width="74" height="96" fill="#d9c79c" stroke="#000" stroke-width="1.5"/><path d="M18 40h74v22h-74z" fill="${RED}" opacity=".8"/><text x="55" y="55" ${F} font-size="7.5" text-anchor="middle" fill="#fff">ЦИРК ХЕЙЛИ</text>
+      <path d="M30 70q12 -8 24 6q12 -10 26 -2" stroke="#000" stroke-width="2" fill="none"/>${[36, 55, 74].map(x => `<circle cx="${x}" cy="${82}" r="4" fill="#000"/><path d="M${x} 86v14M${x - 6} 92h12" stroke="#000" stroke-width="2"/>`).join('')}
+      <text x="55" y="116" ${F} font-size="6" text-anchor="middle" fill="#3a0b0b">ЛЕТАЮЩИЕ</text><text x="55" y="125" ${F} font-size="6" text-anchor="middle" fill="#3a0b0b">ГРЕЙСОНЫ</text><path d="M70 136l22 -30v30z" fill="#0d0d0d"/></g>
     <!-- пожарная лестница -->
     <g stroke="#fff" stroke-width="3" fill="none"><path d="M120 40v240M200 40v240"/>${range(10).map(i => `<path d="M120 ${50 + i * 24}h80"/>`).join('')}<path d="M100 150h120M100 270h120"/></g>
     <!-- памятная табличка -->

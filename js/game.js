@@ -211,7 +211,10 @@
     type($('narr'), sc.narr, 12);
     $('scene').innerHTML = Art[sc.art]() + sc.clues.map(c =>
       `<button class="hot${st.solved[c.id] ? ' solved' : ''}${c.type === 'trace' ? ' trace' : ''}" data-id="${c.id}" aria-label="${c.type === 'trace' ? 'След: ' : ''}${c.name}" style="left:${c.hot.x}%;top:${c.hot.y}%;width:${c.hot.w}%;height:${c.hot.h}%"><span class="hot-label">${c.name}</span></button>`).join('');
-    $('scene').querySelectorAll('.hot').forEach(b => b.onclick = () => openClue(sc.clues.find(c => c.id === b.dataset.id)));
+    $('scene').insertAdjacentHTML('beforeend', (sc.lore || []).map(l =>
+      `<button class="hot lore${st.lore && st.lore[l.id] ? ' seen' : ''}" data-lore="${l.id}" aria-label="Деталь: ${l.name}" style="left:${l.hot.x}%;top:${l.hot.y}%;width:${l.hot.w}%;height:${l.hot.h}%"><span class="hot-label">${l.name}</span></button>`).join(''));
+    $('scene').querySelectorAll('.hot[data-id]').forEach(b => b.onclick = () => openClue(sc.clues.find(c => c.id === b.dataset.id)));
+    $('scene').querySelectorAll('.hot[data-lore]').forEach(b => b.onclick = () => openLore(sc.lore.find(l => l.id === b.dataset.lore), b));
     $('case').scrollTop = 0;
     hud();
   }
@@ -837,6 +840,22 @@
     if (inp && window.innerWidth > 900) inp.focus();
   }
 
+  // деталь мира: просто карточка, без загадки и очков
+  function openLore(l, b) {
+    if (current) current.cleanup.forEach(f => f());
+    current = { clue: { id: 'lore:' + l.id }, v: {}, cleanup: [] };
+    st.lore = st.lore || {}; st.lore[l.id] = true; if (b) b.classList.add('seen');
+    $('mTitle').textContent = l.name;
+    $('mExhibit').innerHTML = l.card;
+    $('mQuestion').textContent = '';
+    $('mFeedback').textContent = '';
+    $('mAnswer').innerHTML = '<p class="lore-ok">Это не улика по делу. Но в Готэме всё рано или поздно оказывается связано.</p>';
+    $('mConclusion').hidden = true; $('mCheck').hidden = true; $('mHint').hidden = true;
+    $('modal').hidden = false; $('modal').classList.add('lore-open'); document.body.classList.add('modal-open');
+    document.querySelector('.m-body').scrollTop = 0;
+    sfx('page');
+  }
+
   function wrong(msg) {
     sfx('wrong');
     st.wrongN = (st.wrongN || 0) + 1;
@@ -891,7 +910,7 @@
   }
 
   function closeModal() {
-    $('modal').hidden = true;
+    $('modal').hidden = true; $('modal').classList.remove('lore-open');
     document.body.classList.remove('modal-open');
     if (current) { current.cleanup.forEach(f => f()); current.cleanup = []; }
     batHide();
@@ -1038,10 +1057,12 @@
         $('chTitle').textContent = 'ГЛАВА ' + 'I'.repeat(ch.no) + ' · ' + ch.title;
         $('chIntro').textContent = ch.intro;
         const list = $('chList'); list.innerHTML = '';
-        ch.cases.forEach(cs => {
+        ch.cases.forEach((cs, k) => {
           const best = store.get(cs.id);
-          const c = el('button', 'diff-b', `<b>ДЕЛО ${cs.no} · ${cs.title}</b><i>${cs.teaser}${best ? ' · ЛУЧШЕЕ: ' + best.pts : ''}</i>`);
+          const prev = ch.cases[k - 1], shut = prev && !store.get(prev.id) && !/[?&]unlock\b/.test(location.search);
+          const c = el('button', 'diff-b' + (shut ? ' locked' : ''), `<b>ДЕЛО ${cs.no} · ${cs.title}</b><i>${shut ? 'откроется после дела ' + prev.no : cs.teaser + (best ? ' · ЛУЧШЕЕ: ' + best.pts : '')}</i>`);
           c.type = 'button'; c.dataset.case = cs.id;
+          if (shut) c.disabled = true;
           c.onclick = ev => { ev.stopPropagation(); chooseCase(cs); };
           list.appendChild(c);
         });
