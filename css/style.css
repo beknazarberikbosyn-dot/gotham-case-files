@@ -457,3 +457,5 @@ html:has(body.big-text){font-size:112.5%}
 
 .skip-ask{box-shadow:0 0 0 4px #d0142c,0 0 0 8px #000}
 .diff-b.alt{background:#2a3150;color:#fff;box-shadow:0 0 0 4px #000,inset -5px -5px 0 #1b2038,inset 5px 5px 0 #3d4670}.diff-b.alt i{color:#cfd6f5}
+.dossier.blank{background:#d8d2c2;border-style:dashed}
+.dossier.blank .dos-body b{color:#7a0b1a}

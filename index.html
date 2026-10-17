@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Balsamiq+Sans:wght@400;700&family=Press+Start+2P&family=Russo+One&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=7">
+<link rel="stylesheet" href="css/style.css?v=8">
 </head>
 <body>
 
@@ -44,6 +44,12 @@
       <feComposite in2="rough" operator="in" result="w"/>
       <feMerge><feMergeNode in="w"/></feMerge>
     </filter>
+    <filter id="glowP" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="9"/></filter>
+    <filter id="glowS" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="hotGlow"><stop offset="0" stop-color="#fff" stop-opacity=".85"/><stop offset=".35" stop-color="#e3ffee" stop-opacity=".35"/><stop offset="1" stop-color="#e3ffee" stop-opacity="0"/></radialGradient>
+    <radialGradient id="fireGlow"><stop offset="0" stop-color="#fff4c8" stop-opacity=".55"/><stop offset=".45" stop-color="#d0142c" stop-opacity=".18"/><stop offset="1" stop-color="#d0142c" stop-opacity="0"/></radialGradient>
+    <radialGradient id="frostGlow"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset=".3" stop-color="#bff3ff" stop-opacity=".6"/><stop offset="1" stop-color="#0b1a22" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lampGlow"><stop offset="0" stop-color="#fff4c8" stop-opacity=".5"/><stop offset="1" stop-color="#fff4c8" stop-opacity="0"/></radialGradient>
     <pattern id="hatchk" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
       <rect width="2.4" height="6" fill="#000"/>
     </pattern>
@@ -175,15 +181,15 @@
   </div>
 </div>
 
-<script src="js/audio.js?v=7"></script>
-<script src="js/pixel.js?v=7"></script>
-<script src="js/art.js?v=7"></script>
-<script src="js/art3.js?v=7"></script>
-<script src="js/art4.js?v=7"></script>
-<script src="js/case1.js?v=7"></script>
-<script src="js/case2.js?v=7"></script>
-<script src="js/case3.js?v=7"></script>
-<script src="js/camp1.js?v=7"></script>
-<script src="js/game.js?v=7"></script>
+<script src="js/audio.js?v=8"></script>
+<script src="js/pixel.js?v=8"></script>
+<script src="js/art.js?v=8"></script>
+<script src="js/art3.js?v=8"></script>
+<script src="js/art4.js?v=8"></script>
+<script src="js/case1.js?v=8"></script>
+<script src="js/case2.js?v=8"></script>
+<script src="js/case3.js?v=8"></script>
+<script src="js/camp1.js?v=8"></script>
+<script src="js/game.js?v=8"></script>
 </body>
 </html>

@@ -661,7 +661,7 @@
         cmp.innerHTML = `<svg viewBox="-70 -70 140 140"><rect x="-70" y="-70" width="140" height="140" fill="#ece5d3"/>${Art.fingerprint(r.kind, r.seed, '#222')}
           <g transform="translate(10 -6)"><circle r="36" fill="rgba(208,20,44,.08)" stroke="#d0142c" stroke-width="1.5" stroke-dasharray="4 3"/><g clip-path="url(#fragc)"><g opacity=".75" transform="rotate(${ang()}) translate(-10 6)">${Art.fingerprint(ref.kind, ref.seed, '#d0142c')}</g></g></g></svg>`;
       };
-      left.innerHTML = '<div class="fr"></div><div class="order-h">ФРАГМЕНТ С НОЖА</div>';
+      left.innerHTML = `<div class="fr"></div><div class="order-h">${v.fragLabel || 'ФРАГМЕНТ С НОЖА'}</div>`;
       const row = el('div', 'mech-row');
       const l = btn('btn ghost', '↺'), r = btn('btn ghost', '↻');
       l.setAttribute('aria-label', 'Повернуть фрагмент влево'); r.setAttribute('aria-label', 'Повернуть фрагмент вправо');
@@ -745,9 +745,9 @@
         const grid = el('div', 'arch-dossiers');
         AR.fugitives.forEach(f => {
           const linked = found.filter(t => st.links[t.id] === f.id);
-          const card = el('div', 'dossier' + (pick ? ' target' : ''));
+          const card = el('div', 'dossier' + (pick ? ' target' : '') + (f.id === 'unknown' ? ' blank' : ''));
           card.innerHTML = `<div class="mug">${Art.mug(f.id)}</div><div class="dos-body"><b>${f.name}</b>${f.alias ? `<i>«${f.alias}»</i>` : ''}
-            <table><tr><td>Рост</td><td>${f.h} см</td><td>Вес</td><td>${f.w} кг</td></tr><tr><td>Обувь</td><td>${f.shoe}</td><td>Кровь</td><td>${f.blood}</td></tr><tr><td>Волосы</td><td colspan="3">${f.hair}</td></tr><tr><td>Рука</td><td colspan="3">${f.hand}</td></tr></table>
+            <table><tr><td>Рост</td><td>${f.h}${typeof f.h === 'number' ? ' см' : ''}</td><td>Вес</td><td>${f.w}${typeof f.w === 'number' ? ' кг' : ''}</td></tr><tr><td>Обувь</td><td>${f.shoe}</td><td>Кровь</td><td>${f.blood}</td></tr><tr><td>Волосы</td><td colspan="3">${f.hair}</td></tr><tr><td>Рука</td><td colspan="3">${f.hand}</td></tr></table>
             <p>${f.habit}</p></div>`;
           const notes = el('div', 'dos-notes');
           linked.forEach(t => notes.appendChild(btn('note-chip', '✎ ' + t.name + ' ×', e => { e.stopPropagation(); delete st.links[t.id]; sfx('scrape'); renderNotes(); render(); })));
