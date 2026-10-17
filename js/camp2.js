@@ -168,7 +168,7 @@
         clues: [
           {
             id: 'h2scan', name: 'Голосовой замок', hot: { x: 52, y: 26, w: 9, h: 22 },
-            type: 'wave', exhibit: scanNote, target: { a: 5, f: 3 }, showTarget: true, checkLabel: 'ПРОСЛУШАТЬ',
+            type: 'wave', exhibit: scanNote, target: { a: 5, f: 3 }, showTarget: true, waveNote: t => t ? 'Красная волна — эталон голоса Брюса Уэйна из памяти замка. Белая — твой сигнал. Наложи одну на другую.' : 'Эталона на экране нет: выставь волну по цифрам из журнала замка.', checkLabel: 'ПРОСЛУШАТЬ',
             hard: { showTarget: false },
             q: 'Настрой сигнал как эталон голоса.',
             aid: 'Размах — высота волны, частота — сколько гребней на экране.',

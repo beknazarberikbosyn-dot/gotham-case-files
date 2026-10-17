@@ -100,7 +100,17 @@
   const sceneDone = i => C.scenes[i].clues.every(c => st.solved[c.id]);
   const scenesDone = () => C.scenes.every((_, i) => sceneDone(i));
   const allDone = () => scenesDone() && (!C.archive || !!st.solved.archive);
-  const finalAction = () => { if (C.interrogation && !st.solved.interrogation) openClue(interroClue()); else toFinale(); };
+  const finalAction = () => { if (C.fight && !st.solved.fight) startFight(); else if (C.interrogation && !st.solved.interrogation) openClue(interroClue()); else toFinale(); };
+  // бой в конце дела: отдельный экран с анимацией
+  function startFight() {
+    const box = $('fight');
+    batHide(); box.hidden = false; document.body.classList.add('fighting');
+    if (window.Sound) Sound.play(C.fight.music || 'duo');
+    Fight.start(box, {
+      diff, capsules: C.fight.capsules || 3, title: C.fight.title, intro: C.fight.intro,
+      onWin: r => { box.hidden = true; box.innerHTML = ''; document.body.classList.remove('fighting'); st.solved.fight = true; st.fightHelp = !!(r && r.help); if (window.Sound) Sound.play(C.music); toFinale(); }
+    });
+  }
   const interroClue = () => Object.assign({ id: 'interrogation', type: 'interrogate', checkLabel: '', exhibit: () => '' }, C.interrogation);
   const allTraces = () => C.scenes.flatMap(sc => sc.clues.filter(c => c.type === 'trace'));
   const ALL_COUNT = () => C.scenes.reduce((n, sc) => n + sc.clues.length, 0) + (C.archive ? 1 : 0) + (C.interrogation ? 1 : 0);
@@ -110,7 +120,7 @@
   const shortName = sc => sc.loc.split(' · ')[1] || sc.loc;
 
   function hud() {
-    const solved = Object.keys(st.solved).length;
+    const solved = Object.keys(st.solved).filter(k => k !== 'fight').length;
     $('hudClues').textContent = solved + '/' + ALL_COUNT();
     $('hudHints').textContent = st.hintsUsed;
     $('hudDiff').textContent = DIFFS[diff].name;
@@ -146,7 +156,7 @@
   }
 
   function nextTarget() {
-    if (allDone()) return { label: (C.finalLabel ? 'НА ' + C.finalLabel : 'К ЛОГОВУ') + ' →', fn: finalAction };
+    if (allDone()) return { label: C.finalCta || (C.finalLabel ? 'НА ' + C.finalLabel : 'К ЛОГОВУ') + ' →', fn: finalAction };
     if (scenesDone() && C.archive) return { label: 'В АРХИВ →', fn: openArchive };
     const n = C.scenes.length;
     for (let k = 1; k <= n; k++) { const i = (st.scene + k) % n; if (!sceneDone(i)) return { label: `МЕСТО ${i + 1} →`, fn: () => goScene(i) }; }
@@ -611,7 +621,7 @@
         inp.oninput = () => { val[k] = +inp.value; row.querySelector('b').textContent = inp.value; };
         A.appendChild(row);
       });
-      A.appendChild(el('p', 'note', v.showTarget ? 'Красная волна — сигнал Шляпника. Белая — твоя. Наложи одну на другую.' : 'Сигнала на экране нет: передатчик молчит до шести. Волну придётся выставить по тому, что ты уже знаешь о карточках.'));
+      A.appendChild(el('p', 'note', v.waveNote ? v.waveNote(!!v.showTarget) : v.showTarget ? 'Красная волна — сигнал Шляпника. Белая — твоя. Наложи одну на другую.' : 'Сигнала на экране нет: передатчик молчит до шести. Волну придётся выставить по тому, что ты уже знаешь о карточках.'));
       return { empty: () => false, check: () => val.a === v.target.a && val.f === v.target.f };
     }
   };
@@ -773,6 +783,271 @@
           return ok === traces.length ? true : `Бэт-компьютер: совпало ${ok} из ${traces.length}. Где-то ошибка.`;
         }
       };
+    }
+  });
+
+  /* ================= НОВЫЕ МЕХАНИКИ (глава I, дело 3) ================= */
+  const norm2 = s => String(s).toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z0-9]/g, '');
+  const NSVG = 'http://www.w3.org/2000/svg';
+  const svgPoint = (svgEl, e) => { const pt = svgEl.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svgEl.getScreenCTM().inverse()); };
+  Object.assign(TYPES, {
+    /* --- фоторобот: собрать лицо по словам свидетеля --- */
+    facekit(v, A) {
+      const sel = Object.assign({}, v.start);
+      const wrap = el('div', 'facekit'), face = el('div', 'fk-face'), rows = el('div', 'fk-rows');
+      const draw = () => {
+        face.innerHTML = Art.facekit(sel);
+        v.features.forEach(f => { rows.querySelector(`[data-f="${f.id}"] b`).textContent = f.opts[sel[f.id]]; });
+      };
+      v.features.forEach(f => {
+        const r = el('div', 'fk-row'); r.dataset.f = f.id;
+        const step = d => () => { sel[f.id] = (sel[f.id] + d + f.opts.length) % f.opts.length; sfx('tick'); draw(); };
+        const l = btn('btn ghost', '◀', step(-1)), rr = btn('btn ghost', '▶', step(1));
+        l.setAttribute('aria-label', f.name + ': предыдущий вариант'); rr.setAttribute('aria-label', f.name + ': следующий вариант');
+        r.append(el('span', 'fk-name', f.name), l, el('b'), rr);
+        rows.appendChild(r);
+      });
+      wrap.append(face, rows); A.appendChild(wrap); draw();
+      return { empty: () => false, check: () => { const ok = v.features.filter(f => sel[f.id] === v.target[f.id]).length; return ok === v.features.length ? true : `${v.who || 'Свидетель'} качает головой: «Похоже, но не он». Совпадает примет: ${ok} из ${v.features.length}.`; } };
+    },
+    /* --- ультрафиолетовый фонарь: найти светящиеся следы --- */
+    uv(v, A, ctx) {
+      const found = new Set();
+      const box = el('div', 'uv', `<div class="uv-base">${v.art(false)}</div><div class="uv-lit">${v.art(true)}</div><div class="uv-beam"></div>`);
+      const cnt = el('p', 'spot-count');
+      A.append(box, cnt, el('p', 'note', v.uvNote || 'Води фонарём по картинке. Нажимай на то, что светится.'));
+      const base = box.querySelector('.uv-base svg'), lit = box.querySelector('.uv-lit svg');
+      const upd = () => { cnt.textContent = `Следов найдено: ${found.size} из ${v.marks.length}`; };
+      upd();
+      const aim = e => { const r = box.getBoundingClientRect(); box.style.setProperty('--x', (e.clientX - r.left) + 'px'); box.style.setProperty('--y', (e.clientY - r.top) + 'px'); box.classList.add('on'); };
+      box.addEventListener('pointermove', aim); box.addEventListener('pointerdown', aim);
+      box.addEventListener('pointerleave', () => box.classList.remove('on'));
+      box.addEventListener('click', e => {
+        aim(e);
+        const p = svgPoint(lit, e);
+        const i = v.marks.findIndex((d, k) => !found.has(k) && Math.hypot(d.x - p.x, d.y - p.y) <= d.r + 8);
+        if (i < 0) { sfx('scrape'); return; }
+        found.add(i); sfx('tick');
+        const d = v.marks[i];
+        const g = lit.querySelector(`[data-mark="${i}"]`); if (g) base.appendChild(g.cloneNode(true));
+        [base, lit].forEach(s => { const c = document.createElementNS(NSVG, 'circle'); c.setAttribute('cx', d.x); c.setAttribute('cy', d.y); c.setAttribute('r', d.r + 6); c.setAttribute('class', 'spot-ring'); s.appendChild(c); });
+        upd();
+        if (found.size === v.marks.length) setTimeout(() => ctx.solve(), 450);
+      });
+      return { noCheck: true, empty: () => true, check: () => found.size === v.marks.length };
+    },
+    /* --- мигающая лампа: азбука Морзе --- */
+    morse(v, A) {
+      const M = { А: '.-', Б: '-...', В: '.--', Г: '--.', Д: '-..', Е: '.', Ж: '...-', З: '--..', И: '..', Й: '.---', К: '-.-', Л: '.-..', М: '--', Н: '-.', О: '---', П: '.--.', Р: '.-.', С: '...', Т: '-', У: '..-', Ф: '..-.', Х: '....', Ц: '-.-.', Ч: '---.', Ш: '----', Щ: '--.-', Ы: '-.--', Ь: '-..-', Э: '..-..', Ю: '..--', Я: '.-.-' };
+      const seq = [];
+      v.word.split('').forEach(ch => { const c = M[ch]; c.split('').forEach((s, k) => { seq.push([1, s === '.' ? 1 : 3, s]); seq.push([0, k === c.length - 1 ? 3 : 1, k === c.length - 1 ? ' ' : '']); }); });
+      seq[seq.length - 1] = [0, 9, '|'];
+      let unit = v.unit || 260, i = 0, tm = 0, log = '';
+      const box = el('div', 'morse', `<div class="m-lamp">${v.lampArt ? Art[v.lampArt]() : ''}</div>${v.showLog ? '<div class="m-log">…</div>' : ''}`);
+      const lamp = box.querySelector('.m-lamp'), logEl = box.querySelector('.m-log');
+      const stepFn = () => {
+        const [on, d, s] = seq[i];
+        lamp.classList.toggle('on', !!on);
+        if (on) log += s === '.' ? '·' : '—'; else if (s === ' ') log += '   '; else if (s === '|') log = '';
+        if (logEl) logEl.textContent = log || '…';
+        i = (i + 1) % seq.length;
+        tm = setTimeout(stepFn, d * unit);
+      };
+      tm = setTimeout(stepFn, 700);
+      current.cleanup.push(() => clearTimeout(tm));
+      const row = el('div', 'mech-row');
+      row.append(btn('btn ghost', 'МЕДЛЕННЕЕ', () => { unit = Math.min(640, unit + 90); sfx('click'); }), btn('btn ghost', 'БЫСТРЕЕ', () => { unit = Math.max(150, unit - 90); sfx('click'); }));
+      A.append(box, row);
+      const inner = el('div');
+      A.appendChild(inner);
+      return TYPES[v.answerType || 'input'](v, inner);
+    },
+    /* --- кабели: повернуть плитки, чтобы ток дошёл до замка --- */
+    pipes(v, A, ctx) {
+      const R = v.rows.length, Cn = v.rows[0].length, S = 64;
+      const OPEN = { I: [0, 2], L: [0, 1], T: [0, 1, 3], X: [0, 1, 2, 3], S: [1], D: [3], '.': [] };
+      const rot = v.start.map(r => r.split('').map(Number));
+      let done = false;
+      const fixed = ch => /[SD.]/.test(ch);
+      const opens = (r, c) => { const ch = v.rows[r][c]; return OPEN[ch].map(d => (d + (fixed(ch) ? 0 : rot[r][c])) % 4); };
+      const DR = [[-1, 0], [0, 1], [1, 0], [0, -1]];
+      const power = () => {
+        const on = new Set(); let st0 = null;
+        for (let r = 0; r < R; r++) for (let c = 0; c < Cn; c++) if (v.rows[r][c] === 'S') st0 = [r, c];
+        const q = [st0]; on.add(st0.join());
+        while (q.length) {
+          const [r, c] = q.shift();
+          opens(r, c).forEach(d => { const nr = r + DR[d][0], nc = c + DR[d][1]; if (nr < 0 || nc < 0 || nr >= R || nc >= Cn) return; const k = nr + ',' + nc; if (on.has(k)) return; if (opens(nr, nc).includes((d + 2) % 4)) { on.add(k); q.push([nr, nc]); } });
+        }
+        return on;
+      };
+      const wrap = el('div', 'pipes');
+      const draw = () => {
+        const on = power();
+        let h = '';
+        for (let r = 0; r < R; r++) for (let c = 0; c < Cn; c++) {
+          const ch = v.rows[r][c], x = c * S, y = r * S, lit = on.has(r + ',' + c), col = lit ? '#ffd400' : '#6a6a6a';
+          h += `<g class="pt${fixed(ch) ? ' fixed' : ''}" data-r="${r}" data-c="${c}"><rect x="${x + 2}" y="${y + 2}" width="${S - 4}" height="${S - 4}" rx="6" fill="${lit ? '#1d1a08' : '#141414'}" stroke="#333" stroke-width="2"/>`;
+          opens(r, c).forEach(d => { const ex = x + S / 2 + DR[d][1] * S / 2, ey = y + S / 2 + DR[d][0] * S / 2; h += `<path d="M${x + S / 2} ${y + S / 2}L${ex} ${ey}" stroke="#000" stroke-width="14" stroke-linecap="square"/><path d="M${x + S / 2} ${y + S / 2}L${ex} ${ey}" stroke="${col}" stroke-width="8" stroke-linecap="square"/>`; });
+          if (ch === 'S') h += `<rect x="${x + 12}" y="${y + 14}" width="${S - 24}" height="${S - 28}" rx="4" fill="#d0142c" stroke="#fff" stroke-width="2"/><path d="M${x + 34} ${y + 18}l-8 14h8l-6 12" stroke="#fff" stroke-width="3" fill="none"/>`;
+          else if (ch === 'D') h += `<rect x="${x + 16}" y="${y + 26}" width="${S - 32}" height="${S - 38}" rx="4" fill="${lit ? '#ffd400' : '#333'}" stroke="#fff" stroke-width="2"/><path d="M${x + 22} ${y + 26}v-6q10 -12 20 0v6" stroke="#fff" stroke-width="3" fill="none"/>`;
+          else if (ch !== '.') h += `<circle cx="${x + S / 2}" cy="${y + S / 2}" r="7" fill="${col}" stroke="#000" stroke-width="2"/>`;
+          h += '</g>';
+        }
+        wrap.innerHTML = `<svg viewBox="0 0 ${Cn * S} ${R * S}">${h}</svg>`;
+        return on;
+      };
+      wrap.addEventListener('click', e => {
+        if (done) return;
+        const g = e.target.closest('.pt'); if (!g || g.classList.contains('fixed')) return;
+        const r = +g.dataset.r, c = +g.dataset.c;
+        rot[r][c] = (rot[r][c] + 1) % 4; sfx('tick');
+        const on = draw();
+        for (let rr = 0; rr < R; rr++) for (let cc = 0; cc < Cn; cc++) if (v.rows[rr][cc] === 'D' && on.has(rr + ',' + cc)) { done = true; sfx('clunk'); setTimeout(() => ctx.solve(), 600); }
+      });
+      A.append(wrap, el('p', 'note', v.pipeNote || 'Нажимай на плитку, чтобы повернуть её. Ток должен дойти от генератора до замка.'));
+      draw();
+      return { noCheck: true, empty: () => true, check: () => done };
+    },
+    /* --- весы: найти тяжёлую подделку за ограниченное число взвешиваний --- */
+    scale(v, A) {
+      const n = v.count || 8, max = v.max || 2, ids = Array.from({ length: n }, (_, k) => k + 1);
+      let pos = {}, log = [], pick = null, tilt = 0;
+      const wrap = el('div', 'scale');
+      const cand = () => {
+        let c = new Set(ids);
+        log.forEach(w => { const L = new Set(w.L), Rr = new Set(w.R); if (w.res === 0) c = new Set([...c].filter(x => !L.has(x) && !Rr.has(x))); else c = new Set([...c].filter(x => (w.res < 0 ? L : Rr).has(x))); });
+        return c;
+      };
+      const render = () => {
+        const L = ids.filter(i => pos[i] === 'L'), Rr = ids.filter(i => pos[i] === 'R');
+        const stat = (x, y, i) => `<g transform="translate(${x} ${y})"><path d="M-8 0h16l-3 -8h-10z" fill="#c8a64a" stroke="#000" stroke-width="1.2"/><rect x="-4" y="-22" width="8" height="14" fill="#d8b85a" stroke="#000" stroke-width="1.2"/><circle cx="0" cy="-27" r="6" fill="#e6c76a" stroke="#000" stroke-width="1.2"/><text x="0" y="12" font-family="Russo One, Arial Black, sans-serif" font-size="10" text-anchor="middle" fill="#fff">${i}</text></g>`;
+        const pan = (arr, sx) => arr.map((i, k) => stat(sx - (arr.length - 1) * 10 + k * 20, 0, i)).join('');
+        wrap.innerHTML = `<svg viewBox="0 0 420 200" class="sc-svg"><path d="M210 180V60" stroke="#fff" stroke-width="6"/><path d="M170 186h80" stroke="#fff" stroke-width="6"/>
+          <g transform="rotate(${tilt} 210 60)" class="sc-beam"><path d="M70 60H350" stroke="#fff" stroke-width="6"/><circle cx="210" cy="60" r="8" fill="#d0142c" stroke="#fff" stroke-width="2"/>
+            <g transform="translate(90 60) rotate(${-tilt})"><path d="M0 0L-50 70M0 0L50 70" stroke="#999" stroke-width="2"/><path d="M-60 70h120q-10 18 -60 18q-50 0 -60 -18z" fill="#333" stroke="#fff" stroke-width="2"/><g transform="translate(0 68)">${pan(L, 0)}</g></g>
+            <g transform="translate(330 60) rotate(${-tilt})"><path d="M0 0L-50 70M0 0L50 70" stroke="#999" stroke-width="2"/><path d="M-60 70h120q-10 18 -60 18q-50 0 -60 -18z" fill="#333" stroke="#fff" stroke-width="2"/><g transform="translate(0 68)">${pan(Rr, 0)}</g></g></g></svg>`;
+        const tray = el('div', 'sc-tray');
+        ids.forEach(i => { const b = btn('chip sc-chip' + (pos[i] ? ' ' + pos[i].toLowerCase() : ''), `№${i}${pos[i] === 'L' ? ' ←' : pos[i] === 'R' ? ' →' : ''}`, () => { pos[i] = !pos[i] ? 'L' : pos[i] === 'L' ? 'R' : undefined; sfx('click'); render(); }); b.dataset.i = i; tray.appendChild(b); });
+        const row = el('div', 'mech-row');
+        const left = max - log.length;
+        const wb = btn('btn', `ВЗВЕСИТЬ (осталось ${left})`, () => {
+          if (left <= 0) return;
+          if (!L.length || L.length !== Rr.length) { $('mFeedback').textContent = 'Ставь на чаши поровну, иначе весы ничего не скажут.'; return; }
+          $('mFeedback').textContent = '';
+          const wL = L.length + (L.includes(v.fake) ? 0.3 : 0), wR = Rr.length + (Rr.includes(v.fake) ? 0.3 : 0);
+          const res = wL > wR ? -1 : wL < wR ? 1 : 0;
+          log.push({ L: L.slice(), R: Rr.slice(), res }); tilt = res * -12; sfx('clunk'); render();
+        });
+        wb.classList.add('sc-weigh'); if (left <= 0) wb.disabled = true;
+        row.append(wb, btn('btn ghost', 'СНЯТЬ ВСЁ', () => { pos = {}; tilt = 0; render(); }), btn('btn ghost', 'НАЧАТЬ ЗАНОВО', () => { pos = {}; log = []; tilt = 0; pick = null; render(); }));
+        const lg = el('ol', 'sc-log');
+        log.forEach(w => lg.appendChild(el('li', '', `${w.L.join(' ')} ⟷ ${w.R.join(' ')}: ${w.res < 0 ? 'левая чаша тяжелее' : w.res > 0 ? 'правая чаша тяжелее' : 'равновесие'}`)));
+        const choose = el('div', 'sc-pick');
+        choose.appendChild(el('span', 'order-h', 'ПОДДЕЛКА:'));
+        ids.forEach(i => { const b = btn('chip sc-p' + (pick === i ? ' sel' : ''), '№' + i, () => { pick = pick === i ? null : i; sfx('click'); render(); }); b.dataset.p = i; choose.appendChild(b); });
+        const box = el('div', 'sc-ui');
+        box.append(el('div', 'order-h', 'НАЖМИ НА СТАТУЭТКУ: ЛЕВАЯ ЧАША → ПРАВАЯ → СНЯТЬ'), tray, row, lg, choose);
+        wrap.appendChild(box);
+      };
+      A.appendChild(wrap); render();
+      return {
+        empty: () => !pick, emptyMsg: 'Сначала укажи подделку.',
+        check: () => { const c = cand(); if (c.size === 1 && c.has(pick)) return true; if (pick === v.fake) return 'Может, и она. Но весы этого ещё не доказали: так ты угадываешь. Начни заново и докажи взвешиванием.'; return false; }
+      };
+    },
+    /* --- кинопроектор: подобрать скорость и направление плёнки --- */
+    projector(v, A) {
+      let fps = v.startFps || 12, rev = false, raf = 0, fr = 0;
+      const box = el('div', 'proj', `<div class="pj-screen"><div class="pj-text"></div><div class="pj-grain"></div></div>`);
+      const txt = box.querySelector('.pj-text'), scr = box.querySelector('.pj-screen');
+      const scramble = (s, k) => s.split(' ').map((w, wi) => { if (k <= 0 || w.length < 3) return w; const a = w.split(''); for (let j = 0; j < k; j++) { const x = (wi * 5 + j * 3) % (a.length - 1); [a[x], a[x + 1]] = [a[x + 1], a[x]]; } return a.join(''); }).join(' ');
+      const render = () => {
+        const off = Math.abs(fps - v.fps) / 4;
+        let t = v.text; if (rev !== !!v.reverse) t = t.split('').reverse().join('');
+        txt.textContent = scramble(t, Math.round(off * 2));
+        box.dataset.off = off;
+      };
+      const loop = () => {
+        fr++;
+        const off = +box.dataset.off || 0;
+        const j = off ? (Math.sin(fr * 1.7) * 3 + ((fr * 37) % 11) - 5) * off : 0;
+        txt.style.transform = `translate(${off ? Math.sin(fr * .9) * off : 0}px, ${j}px)`;
+        scr.style.opacity = off ? (0.75 + ((fr * 13) % 7) / 28) : 1;
+        raf = requestAnimationFrame(loop);
+      };
+      loop(); current.cleanup.push(() => cancelAnimationFrame(raf));
+      const sl = el('label', 'slider', `<span>КАДРЫ/С</span><input type="range" min="8" max="32" step="4" value="${fps}" data-k="fps"><b>${fps}</b>`);
+      const inp = sl.querySelector('input');
+      inp.oninput = () => { fps = +inp.value; sl.querySelector('b').textContent = fps; sfx('tick'); render(); };
+      const dir = btn('btn ghost pj-dir', 'ПЛЁНКА: ВПЕРЁД ▶', () => { rev = !rev; dir.textContent = rev ? '◀ ПЛЁНКА: НАЗАД' : 'ПЛЁНКА: ВПЕРЁД ▶'; sfx('click'); render(); });
+      const row = el('div', 'mech-row'); row.appendChild(dir);
+      A.append(box, sl, row);
+      render();
+      const inner = el('div'); A.appendChild(inner);
+      return TYPES[v.answerType || 'input'](v, inner);
+    },
+    /* --- смешать реактивы по цвету --- */
+    mix(v, A) {
+      const d = v.reagents.map(() => 0), MAX = v.max || 5;
+      const col = () => { const n = d.reduce((a, b) => a + b, 0); if (!n) return null; return [0, 1, 2].map(k => Math.round(v.reagents.reduce((s, r, i) => s + r.color[k] * d[i], 0) / n)); };
+      const rgb = c => c ? `rgb(${c.join(',')})` : 'transparent';
+      const wrap = el('div', 'mix');
+      const render = () => {
+        const c = col(), n = d.reduce((a, b) => a + b, 0);
+        wrap.innerHTML = '';
+        const rs = el('div', 'mx-rows');
+        v.reagents.forEach((r, i) => {
+          const row = el('div', 'mx-row');
+          row.innerHTML = `<i style="background:${rgb(r.color)}"></i><span>${r.name}</span>`;
+          const m = btn('btn ghost', '−', () => { d[i] = Math.max(0, d[i] - 1); sfx('tick'); render(); }), p = btn('btn ghost', '+', () => { d[i] = Math.min(MAX, d[i] + 1); sfx('tick'); render(); });
+          m.dataset.r = i; p.dataset.r = i; p.classList.add('mx-plus'); m.setAttribute('aria-label', r.name + ': меньше'); p.setAttribute('aria-label', r.name + ': больше');
+          row.append(m, el('b', '', d[i]), p);
+          rs.appendChild(row);
+        });
+        const lvl = Math.min(1, n / (MAX * 2));
+        const beaker = el('div', 'mx-beaker', `<svg viewBox="0 0 120 150"><path d="M30 10V60L8 130Q6 142 18 142H102Q114 142 112 130L90 60V10" fill="#0d1416" stroke="#fff" stroke-width="3"/><clipPath id="mxc"><path d="M30 10V60L8 130Q6 142 18 142H102Q114 142 112 130L90 60V10Z"/></clipPath><rect x="0" y="${142 - 132 * lvl}" width="120" height="${132 * lvl}" fill="${rgb(c)}" clip-path="url(#mxc)"/><path d="M24 10H96" stroke="#fff" stroke-width="4"/></svg>`);
+        const read = el('div', 'mx-read', `<div><span>ЭТАЛОН</span><i style="background:${rgb(v.target)}"></i><b>R ${v.target[0]} · G ${v.target[1]} · B ${v.target[2]}</b></div><div><span>В КОЛБЕ</span><i style="background:${rgb(c) || '#000'}"></i><b>${c ? `R ${c[0]} · G ${c[1]} · B ${c[2]}` : 'пусто'}</b></div>`);
+        const right = el('div', 'mx-right'); right.append(beaker, read);
+        wrap.append(rs, right);
+      };
+      A.appendChild(wrap); render();
+      return { empty: () => !d.some(Boolean), emptyMsg: 'Колба пуста.', check: () => d.every((x, i) => x === v.answer[i]) ? true : 'Цвет не тот. Сравни показания колориметра с эталоном.' };
+    },
+    /* --- гель с ДНК: найти совпадающие дорожки --- */
+    gel(v, A) {
+      let links = [], pick = null;
+      const COLS = ['#ffd400', '#5fd0ff', '#ff7ab0'];
+      const wrap = el('div', 'gel');
+      const W = 64, H = 240;
+      const render = () => {
+        let h = `<rect width="${v.lanes.length * W + 20}" height="${H + 40}" fill="#0a0f1a"/><rect x="6" y="6" width="${v.lanes.length * W + 8}" height="${H}" fill="#141c30" stroke="#3a4a6a" stroke-width="2"/>`;
+        v.lanes.forEach((ln, i) => {
+          const x = 14 + i * W, li = links.findIndex(p => p.includes(i));
+          h += `<g class="gl${ln.marker ? ' mk' : ''}${pick === i ? ' sel' : ''}" data-i="${i}"><rect x="${x}" y="10" width="${W - 12}" height="${H - 8}" fill="${pick === i ? '#26365a' : '#10182a'}" stroke="${li >= 0 ? COLS[li] : '#2a3a5a'}" stroke-width="${li >= 0 ? 3 : 1.5}"/>`;
+          ln.bands.forEach(b => { const y = 20 + b * (H - 30); h += `<rect x="${x + 6}" y="${y}" width="${W - 24}" height="5" rx="2" fill="#e8f4ff" opacity=".9"/><rect x="${x + 4}" y="${y - 2}" width="${W - 20}" height="9" rx="4" fill="#9fd8ff" opacity=".18"/>`; });
+          h += `<text x="${x + (W - 12) / 2}" y="${H + 26}" font-family="Russo One, Arial Black, sans-serif" font-size="13" text-anchor="middle" fill="${ln.marker ? '#777' : '#fff'}">${ln.short}</text></g>`;
+        });
+        wrap.innerHTML = `<svg viewBox="0 0 ${v.lanes.length * W + 20} ${H + 40}">${h}</svg>`;
+        const lg = el('div', 'gel-legend');
+        v.lanes.forEach(ln => { if (!ln.marker) lg.appendChild(el('span', '', `<b>${ln.short}</b> ${ln.label}`)); });
+        const ls = el('div', 'gel-links');
+        links.forEach((p, k) => ls.appendChild(btn('note-chip', `${v.lanes[p[0]].short} = ${v.lanes[p[1]].short} ×`, () => { links.splice(k, 1); sfx('scrape'); render(); })));
+        if (!links.length) ls.appendChild(el('span', 'dim', 'Пар пока нет. Нажми на одну дорожку, потом на другую.'));
+        ls.querySelectorAll('.note-chip').forEach((b, k) => { b.style.borderColor = COLS[k]; });
+        wrap.append(lg, ls);
+      };
+      wrap.addEventListener('click', e => {
+        const g = e.target.closest('.gl'); if (!g || g.classList.contains('mk')) return;
+        const i = +g.dataset.i;
+        if (pick === null) pick = i;
+        else if (pick === i) pick = null;
+        else { links = links.filter(p => !p.includes(i) && !p.includes(pick)); if (links.length < 3) links.push([pick, i]); pick = null; }
+        sfx('click'); render();
+      });
+      A.appendChild(wrap); render();
+      const same = (a, b) => (a[0] === b[0] && a[1] === b[1]) || (a[0] === b[1] && a[1] === b[0]);
+      return { empty: () => !links.length, emptyMsg: 'Сначала соедини дорожки в пары.', check: () => links.length === v.pairs.length && v.pairs.every(p => links.some(l => same(l, p))) ? true : (links.filter(l => v.pairs.some(p => same(l, p))).length ? 'Часть пар верна, но не все. Сравни полосы точнее.' : false) };
     }
   });
 
