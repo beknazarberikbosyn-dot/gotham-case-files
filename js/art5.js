@@ -11,56 +11,82 @@
   const uid = p => p + (++UID);
 
   /* ---------- лицо Брюса Уэйна (и его копия) ---------- */
-  const FACE = 'M-34 -14Q-36 -50 0 -52Q36 -50 34 -14L33 16Q30 36 18 44Q8 50 0 50Q-8 50 -18 44Q-30 36 -33 16Z';
+  const FACE = 'M-36 -20Q-38 -58 0 -60Q38 -58 36 -20L35 4Q34 24 24 38Q12 52 0 52Q-12 52 -24 38Q-34 24 -35 4Z';
+  const SKIN = '#fff';
+  /* Брюс Уэйн: зачёсанные назад чёрные волосы с прядью, тяжёлые брови, квадратный подбородок с ямкой */
   function bruceFace(o) {
     o = o || {};
-    const p = o.part === 'right' ? 1 : -1;
-    return `<ellipse cx="-36" cy="2" rx="6" ry="11" fill="#fff" stroke="#000" stroke-width="2"/><ellipse cx="36" cy="2" rx="6" ry="11" fill="#fff" stroke="#000" stroke-width="2"/>
-      <path d="${FACE}" fill="${o.skin || '#fff'}" stroke="#000" stroke-width="2.5"/>
-      ${o.flat ? '' : '<path d="M14 -50Q36 -46 34 -14L33 16Q30 36 18 44Q24 20 24 -6Q24 -34 14 -50Z" fill="url(#htk)" opacity=".45"/>'}
-      <path d="M-37 -6Q-42 -58 0 -62Q42 -58 37 -6Q35 -28 26 -36Q${p * -10} ${-46} ${p * -30} -32Q-34 -22 -37 -6Z" fill="#111" stroke="#000" stroke-width="2"/>
-      <path d="M${p * 14} -61Q${p * 16} -52 ${p * 20} -42" stroke="#fff" stroke-width="2.5" fill="none"/>
-      <path d="M${p * -20} -44Q${p * -4} -52 ${p * 18} -42" stroke="#444" stroke-width="1.4" fill="none"/>
-      <path d="M-26 -20L-8 -17M8 -17L26 -20" stroke="#000" stroke-width="4.5" stroke-linecap="round"/>
-      <path d="M-23 -9Q-16 -14 -9 -9Q-16 -6 -23 -9ZM23 -9Q16 -14 9 -9Q16 -6 23 -9Z" fill="#fff" stroke="#000" stroke-width="1.6"/><circle cx="-16" cy="-9.5" r="2.2"/><circle cx="16" cy="-9.5" r="2.2"/>
-      <path d="M0 -6L-5 13Q0 16 5 13" stroke="#000" stroke-width="2" fill="none"/>
-      <path d="M-24 6Q-22 18 -16 22M24 6Q22 18 16 22" stroke="#000" stroke-width="1" fill="none" opacity=".5"/>
-      <path d="M-11 27Q0 30 11 27" stroke="#000" stroke-width="2.4" fill="none"/><path d="M0 40v6" stroke="#000" stroke-width="1.2"/>
-      ${o.scar ? `<path d="M-9 42H9" stroke="${RED}" stroke-width="1.6"/><path d="M-7 39v6M-3 39v6M1 39v6M5 39v6" stroke="#000" stroke-width="1.1"/>` : ''}`;
+    const p = o.part === 'right' ? -1 : 1; // зеркалим пробор и прядь
+    const skin = o.skin || SKIN;
+    return `<ellipse cx="-39" cy="-6" rx="7" ry="13" fill="${skin}" stroke="#000" stroke-width="2.4"/><ellipse cx="39" cy="-6" rx="7" ry="13" fill="${skin}" stroke="#000" stroke-width="2.4"/>
+      <path d="M-41 -8q4 -4 4 4M41 -8q-4 -4 -4 4" stroke="#000" stroke-width="1.4" fill="none"/>
+      <path d="${FACE}" fill="${skin}" stroke="#000" stroke-width="2.8"/>
+      ${o.flat ? '' : `<path d="M12 -59Q38 -56 36 -20L35 4Q34 24 24 38Q16 46 8 50Q22 30 24 4Q26 -36 12 -59Z" fill="url(#htk)" opacity=".5"/>`}
+      <path d="M22 6Q28 18 24 32M-22 6Q-27 16 -24 28" stroke="#000" stroke-width="1.4" fill="none" opacity=".55"/>
+      <g transform="scale(${p} 1)">
+        <path d="M-42 -16Q-48 -72 -6 -78Q34 -82 44 -50Q48 -34 41 -16Q40 -38 31 -46Q20 -56 2 -55Q-18 -54 -28 -46Q-38 -36 -42 -16Z" fill="#0d0d0d" stroke="#000" stroke-width="2"/>
+        <path d="M-6 -55Q-18 -48 -14 -34Q-8 -44 2 -50Z" fill="#0d0d0d"/>
+        <path d="M-20 -70Q-19 -63 -17 -56" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <g stroke="#fff" stroke-width="1.6" fill="none" opacity=".55"><path d="M-14 -72Q10 -78 34 -58"/><path d="M-10 -66Q12 -70 30 -52"/><path d="M-36 -40Q-36 -58 -26 -66"/></g>
+      </g>
+      <path d="M-31 -27Q-20 -34 -6 -27M31 -27Q20 -34 6 -27" stroke="#000" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+      <path d="M-28 -15Q-18 -22 -8 -15Q-18 -10 -28 -15ZM28 -15Q18 -22 8 -15Q18 -10 28 -15Z" fill="#fff" stroke="#000" stroke-width="1.8"/>
+      <circle cx="-17" cy="-15.5" r="3.2"/><circle cx="17" cy="-15.5" r="3.2"/><circle cx="-16" cy="-16.5" r="1" fill="#fff"/><circle cx="18" cy="-16.5" r="1" fill="#fff"/>
+      <path d="M-29 -15Q-18 -24 -7 -16M29 -15Q18 -24 7 -16" stroke="#000" stroke-width="2.6" fill="none"/>
+      <path d="M-25 -8Q-18 -6 -11 -8M25 -8Q18 -6 11 -8" stroke="#000" stroke-width="1" fill="none" opacity=".5"/>
+      <path d="M2 -14L-4 9Q2 14 9 9" stroke="#000" stroke-width="2.6" fill="none" stroke-linejoin="round"/><path d="M8 -6Q12 2 9 8" stroke="#000" stroke-width="1" fill="none" opacity=".5"/>
+      <path d="M-15 22Q0 28 15 21" stroke="#000" stroke-width="2.8" fill="none" stroke-linecap="round"/><path d="M15 21l3 -3" stroke="#000" stroke-width="2" stroke-linecap="round"/>
+      <path d="M-6 30Q0 32 6 30" stroke="#000" stroke-width="1.4" fill="none" opacity=".6"/>
+      <path d="M-2 42Q0 47 2 42" stroke="#000" stroke-width="1.6" fill="none"/>
+      ${o.scar ? `<path d="M-10 40Q0 44 10 39" stroke="${RED}" stroke-width="1.8" fill="none"/><path d="M-7 37v6M-3 38v6M1 38v6M5 37v6M9 36v6" stroke="#000" stroke-width="1.2"/>` : ''}`;
   }
-  /* голова в бинтах: reveal — снизу справа видно новое лицо */
+  /* голова в бинтах: широкие витки поверх лица; reveal — бинт размотан со щеки и подбородка */
+  const HEADP = 'M-38 -20Q-41 -66 0 -70Q41 -66 38 -20L37 4Q36 26 25 40Q12 54 0 54Q-12 54 -25 40Q-36 26 -37 4Z';
   function hushHead(o) {
     o = o || {};
-    const cid = uid('hb');
-    const shape = o.reveal
-      ? 'M-38 -6Q-43 -62 0 -66Q42 -62 38 -6L37 6Q26 10 18 8L10 12Q2 18 -2 30Q-4 42 0 54Q-8 54 -18 48Q-32 40 -35 18Z'
-      : 'M-38 -6Q-43 -62 0 -66Q42 -62 38 -6L36 18Q32 40 18 48Q8 54 0 54Q-8 54 -18 48Q-32 40 -35 18Z';
-    const strips = range(13).map(i => { const y = -66 + i * 10, t = i % 2 ? 7 : -7; return `<path d="M-46 ${y + t}Q0 ${y - t} 46 ${y + t + 4}" stroke="#b5ad98" stroke-width="1.4" fill="none"/>`; }).join('');
-    return `<defs><clipPath id="${cid}"><path d="${shape}"/></clipPath></defs>
-      ${o.reveal ? bruceFace({ part: 'right', scar: true, flat: true, skin: '#ead2bd' }) : ''}
-      <path d="${shape}" fill="${BAND}" stroke="#000" stroke-width="2.6"/>
-      <g clip-path="url(#${cid})">${strips}<path d="M14 -62Q40 -56 38 -6L36 18Q30 30 22 24Q28 -4 26 -30Q22 -52 14 -62Z" fill="url(#htk)" opacity=".35"/></g>
-      <path d="M-27 -14Q-16 -22 -5 -14Q-16 -4 -27 -14ZM27 -14Q16 -22 5 -14Q16 -4 27 -14Z" fill="#1a1a1a"/>
-      <path d="M-22 -14Q-16 -18 -10 -14Q-16 -11 -22 -14ZM22 -14Q16 -18 10 -14Q16 -11 22 -14Z" fill="#fff"/><circle cx="-16" cy="-14" r="2.2"/><circle cx="16" cy="-14" r="2.2"/>
-      <path d="M-28 -24L-6 -19M6 -19L28 -24" stroke="#000" stroke-width="3" stroke-linecap="round"/>
-      ${o.reveal ? `<path d="M30 8L44 14L40 34L48 46L38 62L30 58L36 46L28 34L32 18Z" fill="${BAND}" stroke="#000" stroke-width="2" stroke-linejoin="round"/><path d="M34 20l6 4M32 38l8 4M36 50l6 2" stroke="#b5ad98" stroke-width="1.2"/>` : `<path d="M-8 34Q0 36 8 34" stroke="#b5ad98" stroke-width="2" fill="none"/>`}`;
+    const cid = uid('hb'), sid = uid('hs');
+    // область бинтов: при reveal правый низ размотан ступеньками по виткам
+    const area = o.reveal
+      ? 'M-60 -90H60V0H40L30 4L22 2V14H12L6 12V26H0L-2 30V70H-60Z'
+      : 'M-60 -90H60V70H-60Z';
+    const bands = [-70, -58, -46, -34, -22, -10, 2, 14, 26, 38, 50].map((y, i) => {
+      const t = (i % 2 ? 1 : -1) * 4;
+      const d = `M-50 ${y + t}Q0 ${y - t - 2} 50 ${y + t + 3}`;
+      return `<path d="${d}" stroke="#000" stroke-width="14" fill="none"/><path d="${d}" stroke="${BAND}" stroke-width="11.5" fill="none"/><path d="M-50 ${y + t + 3}Q0 ${y - t + 1} 50 ${y + t + 6}" stroke="#cfc7b2" stroke-width="2" fill="none"/>`;
+    }).join('');
+    return `<defs><clipPath id="${cid}"><path d="${HEADP}"/></clipPath><clipPath id="${sid}"><path d="${area}"/></clipPath></defs>
+      ${o.reveal ? `<g clip-path="url(#${cid})">${bruceFace({ part: 'right', scar: true, flat: true, skin: '#ecd4bf' })}</g><path d="${HEADP}" fill="none" stroke="#000" stroke-width="2.8"/>` : ''}
+      <g clip-path="url(#${sid})">
+        <path d="${HEADP}" fill="${BAND}"/>
+        <g clip-path="url(#${cid})">${bands}
+          <path d="M14 -68Q42 -62 38 -20L37 4Q36 26 25 40Q18 48 10 52Q26 26 26 -6Q26 -48 14 -68Z" fill="url(#htk)" opacity=".4"/>
+          <path d="M-40 -24H40V-4H-40Z" fill="#141414"/>
+          <path d="M-30 -14Q-18 -24 -6 -14Q-18 -6 -30 -14ZM30 -14Q18 -24 6 -14Q18 -6 30 -14Z" fill="#fff" stroke="#000" stroke-width="1.6"/>
+          <circle cx="-18" cy="-14.5" r="3"/><circle cx="18" cy="-14.5" r="3"/>
+          <path d="M-31 -21L-6 -17M31 -21L6 -17" stroke="#000" stroke-width="3.5" stroke-linecap="round"/>
+        </g>
+        <path d="${HEADP}" fill="none" stroke="#000" stroke-width="2.8"/>
+      </g>
+      ${o.reveal ? `<path d="M40 0L30 4L22 2V14H12L6 12V26H0L-2 30" stroke="#8a8270" stroke-width="1.4" fill="none" stroke-dasharray="2 2"/>
+        <path d="M38 2Q52 16 46 40Q42 56 52 70Q56 80 50 92L40 88Q46 78 42 70Q32 54 36 36Q40 18 30 8Z" fill="${BAND}" stroke="#000" stroke-width="2.2" stroke-linejoin="round"/>
+        <path d="M40 22Q44 30 41 42M44 60Q47 70 45 82" stroke="#cfc7b2" stroke-width="2" fill="none"/>` : ''}`;
   }
+  /* Хаш на карусели: длинный тёмный плащ с поднятым воротником, ремень, перчатки; 0,0 — где сидит */
   function hushFig(x, y, k, o) {
-    // сидит боком на лошади карусели, лицом к нам; 0,0 — сиденье
     o = o || {};
+    const sleeve = d => `<path d="${d}" stroke="#fff" stroke-width="27" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" stroke="#171717" stroke-width="22" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+    const glove = (gx, gy, r) => `<g transform="translate(${gx} ${gy}) rotate(${r})"><path d="M-10 -8Q-12 8 -4 12H8Q14 8 12 -2L14 -10Q14 -14 10 -12L8 -6V-12Q6 -16 2 -12V-8Q0 -14 -4 -10Z" fill="#050505" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M-10 -2Q-18 -6 -16 -12Q-12 -14 -8 -8" fill="#050505" stroke="#fff" stroke-width="1.8"/></g>`;
     return `<g transform="translate(${x} ${y}) scale(${k})">
-      <path d="M-30 -6L-34 70L-18 72L-12 4ZM30 -6L34 70L18 72L12 4Z" fill="#141414" stroke="#fff" stroke-width="2"/>
-      <path d="M-38 70h24l2 8h-30zM14 70h24l4 8h-30z" fill="#000" stroke="#fff" stroke-width="2"/>
-      <path d="M-46 -10Q-48 10 -30 12H30Q48 10 46 -10Z" fill="#1c1c1c" stroke="#fff" stroke-width="2.5"/>
-      <path d="M-50 -150Q-58 -60 -50 4H50Q58 -60 50 -150Q30 -164 0 -164Q-30 -164 -50 -150Z" fill="#161616" stroke="#fff" stroke-width="3"/>
-      <path d="M-50 -150Q-58 -60 -50 4H-20Q-30 -60 -26 -150Z" fill="url(#hatch)" opacity=".07"/>
-      <path d="M-30 -160L-12 -110L0 -150L12 -110L30 -160" fill="#0c0c0c" stroke="#fff" stroke-width="2"/>
-      <path d="M-14 -150Q0 -140 14 -150L12 -128Q0 -122 -12 -128Z" fill="#5a0e16" stroke="#000" stroke-width="1.5"/><path d="M6 -128L14 -96L4 -92Z" fill="#5a0e16" stroke="#000" stroke-width="1.5"/>
-      <path d="M0 -110V0" stroke="#333" stroke-width="2"/>${range(3).map(i => `<circle cx="-6" cy="${-90 + i * 24}" r="2.5" fill="#888"/>`).join('')}
-      <path d="M-50 -140Q-74 -90 -60 -40Q-56 -26 -44 -24" stroke="#fff" stroke-width="22" fill="none" stroke-linecap="round"/><path d="M-50 -140Q-74 -90 -60 -40Q-56 -26 -44 -24" stroke="#161616" stroke-width="17" fill="none" stroke-linecap="round"/>
-      <path d="M50 -140Q72 -100 62 -60Q58 -44 46 -40" stroke="#fff" stroke-width="22" fill="none" stroke-linecap="round"/><path d="M50 -140Q72 -100 62 -60Q58 -44 46 -40" stroke="#161616" stroke-width="17" fill="none" stroke-linecap="round"/>
-      <ellipse cx="-42" cy="-24" rx="11" ry="9" fill="#000" stroke="#fff" stroke-width="1.5"/><ellipse cx="44" cy="-40" rx="11" ry="9" fill="#000" stroke="#fff" stroke-width="1.5"/>
-      <g transform="translate(0 -214) scale(.92)">${hushHead({ reveal: o.reveal })}</g>
+      ${sleeve('M-44 -130Q-62 -86 -56 -40Q-54 -22 -40 -14')}${sleeve('M44 -130Q62 -86 56 -40Q54 -22 40 -14')}
+      <path d="M-46 -134Q-52 -70 -42 0H42Q52 -70 46 -134Q26 -148 0 -148Q-26 -148 -46 -134Z" fill="#171717" stroke="#fff" stroke-width="3"/>
+      <path d="M-46 -134Q-52 -70 -42 0H-24Q-32 -70 -28 -140Z" fill="url(#hatch)" opacity=".08"/>
+      <path d="M-30 -146L-6 -96L0 -128L6 -96L30 -146L38 -170L14 -150H-14L-38 -170Z" fill="#0b0b0b" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/>
+      <path d="M-14 -148Q0 -138 14 -148L12 -128Q0 -122 -12 -128Z" fill="#5a0e16" stroke="#000" stroke-width="1.5"/>
+      <path d="M-6 -96L-14 -60M6 -96L14 -60" stroke="#fff" stroke-width="1.6" opacity=".6"/>
+      ${[-80, -60].map(yy => `<circle cx="-12" cy="${yy}" r="3" fill="#777"/><circle cx="12" cy="${yy}" r="3" fill="#777"/>`).join('')}
+      <path d="M-46 -40H46" stroke="#fff" stroke-width="2"/><path d="M-46 -40H46V-30H-46Z" fill="#0b0b0b" stroke="#fff" stroke-width="2"/><rect x="-8" y="-42" width="16" height="14" fill="none" stroke="#c8c8c8" stroke-width="2.4"/>
+      ${glove(-40, -14, 10)}${glove(40, -14, -10)}
+      <g transform="translate(0 -196) scale(.78)">${hushHead({ reveal: o.reveal })}</g>
     </g>`;
   }
 
@@ -74,14 +100,16 @@
     h += `<path d="M110 260Q112 160 160 140L200 136L240 140Q288 160 290 260Z" fill="#111" stroke="#fff" stroke-width="2.5"/>
       <path d="M176 138L200 200L224 138Z" fill="#fff" stroke="#000" stroke-width="1.5"/>
       <path d="M176 138L190 186L168 160ZM224 138L210 186L232 160Z" fill="#000" stroke="#fff" stroke-width="1.5"/>
-      <path d="M120 170Q112 210 118 232M280 170Q288 210 282 232" stroke="#fff" stroke-width="22" fill="none" stroke-linecap="round"/><path d="M120 170Q112 210 118 232M280 170Q288 210 282 232" stroke="#111" stroke-width="18" fill="none" stroke-linecap="round"/>
-      <ellipse cx="118" cy="240" rx="10" ry="12" fill="#fff" stroke="#000" stroke-width="2"/><ellipse cx="282" cy="240" rx="10" ry="12" fill="#fff" stroke="#000" stroke-width="2"/>
+      <path d="M140 150Q112 166 106 232L132 234Q134 196 150 170Z" fill="#111" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/><path d="M260 150Q288 166 294 232L268 234Q266 196 250 170Z" fill="#111" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M106 230H132V238H106ZM268 230H294V238H268Z" fill="#fff" stroke="#000" stroke-width="1.5"/>
+      <path d="M108 238Q102 254 110 262Q120 268 128 260Q134 250 130 238Z" fill="#fff" stroke="#000" stroke-width="2"/><path d="M114 250v8M120 250v9" stroke="#000" stroke-width="1"/>
+      <path d="M292 238Q298 254 290 262Q280 268 272 260Q266 250 270 238Z" fill="#fff" stroke="#000" stroke-width="2"/><path d="M286 250v8M280 250v9" stroke="#000" stroke-width="1"/>
       <path d="M184 116h32v22h-32z" fill="#fff" stroke="#000" stroke-width="2"/>`;
     h += after
       ? `<path d="M194 140h12l-2 6l6 34l-10 10l-10 -10l6 -34z" fill="#333" stroke="#fff" stroke-width="1.2"/>`
       : `<path d="M186 140l14 7l14 -7v14l-14 -7l-14 7z" fill="#000" stroke="#fff" stroke-width="1.5"/><circle cx="200" cy="147" r="3" fill="#000" stroke="#fff" stroke-width="1"/>`;
     if (!after) h += `<circle cx="232" cy="176" r="5" fill="${RED}" stroke="#fff" stroke-width="1.5"/><path d="M232 171v10M227 176h10" stroke="#fff" stroke-width="1"/>`;
-    if (!after) h += `<rect x="270" y="222" width="22" height="9" rx="2" fill="#bbb" stroke="#000" stroke-width="1.5"/><circle cx="281" cy="226.5" r="3" fill="#fff" stroke="#000" stroke-width="1"/>`;
+    if (!after) h += `<rect x="269" y="236" width="24" height="9" rx="2" fill="#bbb" stroke="#000" stroke-width="1.5"/><circle cx="281" cy="240.5" r="3.2" fill="#fff" stroke="#000" stroke-width="1"/>`;
     h += `<g transform="translate(200 82) scale(.98)">${bruceFace({ part: after ? 'right' : 'left', scar: after })}</g>`;
     h += `<rect width="400" height="260" fill="url(#ht)" opacity=".05"/>`;
     return svg(h, '0 0 400 260');
@@ -90,7 +118,11 @@
   /* ---------- общие мелочи ---------- */
   const polaroid = (x, y, r, s) => `<g transform="translate(${x} ${y}) rotate(${r}) scale(${s || 1})"><rect x="-14" y="-16" width="28" height="34" fill="${PAPER}" stroke="#000" stroke-width="1.2"/><rect x="-11" y="-13" width="22" height="22" fill="#2a2a2a"/><g transform="translate(0 -1) scale(.2)">${bruceFace({})}</g><path d="M-6 -20v6" stroke="#ddd" stroke-width="3"/></g>`;
   const cutPhoto = (x, y, r) => `<g transform="translate(${x} ${y}) rotate(${r})"><rect x="-16" y="-20" width="32" height="40" fill="#e9e3d0" stroke="#000" stroke-width="1"/><path d="M-12 -14h24M-12 10h18M-12 14h14" stroke="#888" stroke-width="1"/><ellipse cx="0" cy="-2" rx="8" ry="10" fill="#0a0a0a"/><path d="M-10 18q10 -10 20 0" fill="#555"/></g>`;
-  const gloveDrop = (x, y, r) => `<g transform="translate(${x} ${y}) rotate(${r})"><path d="M-14 -6Q-16 6 -8 10L12 10Q18 6 16 0L10 -2L12 -12L8 -12L6 -4L4 -14L0 -14L0 -4L-4 -12L-8 -12L-6 -4Z" fill="#e6efe9" stroke="#000" stroke-width="1.5"/><path d="M-8 6Q2 2 12 6" stroke="${RED}" stroke-width="1.5" fill="none"/></g>`;
+  const gloveDrop = (x, y, r) => `<g transform="translate(${x} ${y}) scale(1 .7) rotate(${r})">
+    <path d="M-12 18L-14 2Q-16 -4 -22 -10Q-26 -15 -21 -17Q-16 -18 -10 -8L-9 -24Q-9 -29 -5 -29Q-1 -29 -1 -24L-1 -30Q-1 -35 3 -35Q7 -35 7 -30L7 -26Q7 -31 11 -31Q15 -31 15 -26L15 -20Q15 -24 19 -24Q22 -24 22 -19L21 4Q20 14 14 18Z" fill="#d6eaef" stroke="#2a4048" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M-13 18H15L16 24H-14Z" fill="#c3dde4" stroke="#2a4048" stroke-width="2"/>
+    <path d="M-1 -24V-6M7 -26V-6M15 -20V-4" stroke="#8fb3bd" stroke-width="1.4"/><path d="M-8 4Q4 0 18 4" stroke="#8fb3bd" stroke-width="1.2" fill="none"/>
+    <g fill="${RED}"><circle cx="3" cy="-31" r="2.4"/><circle cx="11" cy="-27" r="2"/><circle cx="-5" cy="-25" r="1.8"/><ellipse cx="6" cy="8" rx="5" ry="3" opacity=".8"/></g></g>`;
   const shoe41 = (x, y, r, s) => `<g transform="translate(${x} ${y}) scale(1 .55)"><g transform="rotate(${r}) scale(${s || 1})"><path d="M0 -30C9 -30 12 -20 11 -10C10 -2 6 4 6 10C6 18 8 24 0 26C-8 24 -6 18 -6 10C-6 4 -11 -2 -11 -10C-12 -20 -9 -30 0 -30Z" fill="#3a3a3a" stroke="#777" stroke-width="1.5"/><path d="M-6 14h12M-7 18h14M-6 22h12" stroke="#222" stroke-width="1.5"/></g></g>`;
   const coverPrint = (x, y, s, rot) => `<g transform="translate(${x} ${y}) scale(1 .55)"><g transform="rotate(${rot}) scale(${s})"><path d="M0 -30C9 -30 12 -20 11 -10C10 -2 6 4 6 10C6 18 8 24 0 26C-8 24 -6 18 -6 10C-6 4 -11 -2 -11 -10C-12 -20 -9 -30 0 -30Z" fill="#4f7fc0" opacity=".8"/><g stroke="#24497a" stroke-width="1.6" fill="none">${range(7).map(i => `<path d="M-8 ${-24 + i * 7}q8 ${i % 2 ? 3 : -3} 16 0"/>`).join('')}</g></g></g>`;
   const mirrorText = (x, y, lines, size) => `<g transform="translate(${x} ${y}) scale(-1 1)">${lines.map((t, i) => `<text x="0" y="${i * (size + 4)}" ${MONO} font-size="${size}" text-anchor="middle" fill="${RED}">${t}</text>`).join('')}</g>`;
@@ -264,15 +296,15 @@
     <g stroke="#fff" stroke-width="1.4" opacity=".9">${range(5).map(i => `<path d="M${124 + i * 12} 296l6 -8M${222 + i * 12} 300l5 6"/>`).join('')}<path d="M124 314h56M220 318h56M128 322h40"/></g>
     <rect x="160" y="336" width="22" height="16" fill="${PAPER}" stroke="#000" stroke-width="1" transform="rotate(-10 171 344)"/>
     <!-- соседняя могила -->
-    ${stone(606, 238, 80, 92, 'ЭССЕН-ГОРДОН')}
-    <g>${range(5).map(i => `<path d="M${626 + i * 8} 330L${622 + i * 10} 312" stroke="#2a4a2a" stroke-width="2"/><circle cx="${622 + i * 10}" cy="${310}" r="4.5" fill="#fff"/>`).join('')}</g><path d="M664 296l8 -4l8 4v8l-8 4l-8 -4z" fill="#c8a64a" stroke="#000" stroke-width="1"/>
+    ${stone(606, 238, 80, 92, 'САРА')}<text x="646" y="282" ${F} font-size="6.5" text-anchor="middle" fill="#111">ЭССЕН-ГОРДОН</text><text x="646" y="294" font-family="Georgia, serif" font-style="italic" font-size="7" text-anchor="middle" fill="#111">любимой жене</text>
+    <g>${range(4).map(i => `<path d="M${622 + i * 8} 330L${618 + i * 9} 314" stroke="#2a4a2a" stroke-width="2"/><circle cx="${618 + i * 9}" cy="${312}" r="4" fill="#fff"/>`).join('')}</g><path d="M664 318l7 -3.5l7 3.5v7l-7 3.5l-7 -3.5z" fill="#c8a64a" stroke="#000" stroke-width="1"/>
     <!-- трава и следы -->
     <path d="M0 330H800V500H0Z" fill="#0d1410"/><path d="M0 330H800" stroke="#fff" stroke-width="2"/>
     <g stroke="#1d2a20" stroke-width="2">${range(40).map(i => `<path d="M${(i * 41) % 800} ${350 + (i * 29) % 140}l3 -8l3 8"/>`).join('')}</g>
     <path d="M330 470Q390 400 470 410Q520 416 560 400" stroke="#2a3a30" stroke-width="22" fill="none" opacity=".7"/>
     ${range(6).map(i => `<g transform="translate(${340 + i * 28} ${458 - i * 9}) scale(1 .5) rotate(${70 + (i % 2) * 8})"><path d="M0 -14C5 -14 6 -9 6 -4C5 0 3 3 3 6C3 10 4 12 0 13C-4 12 -3 10 -3 6C-3 3 -6 0 -6 -4C-6 -9 -5 -14 0 -14Z" fill="#4a5a50"/></g>`).join('')}
     <!-- тренога за дальним склепом -->
-    <path d="M720 320V250H790V320" fill="#1a1a1a" stroke="#888" stroke-width="2"/>
+    <path d="M716 324V262H792V324Z" fill="#1c1c1c" stroke="#888" stroke-width="2"/><path d="M708 264L754 232L800 264Z" fill="#242424" stroke="#888" stroke-width="2"/><path d="M742 324V286H766V324" fill="#050505" stroke="#888" stroke-width="1.5"/>
     <g fill="#000">${[[730, 352], [758, 346], [748, 364]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="4" ry="2"/>`).join('')}</g>
     ${shoe41(714, 356, -20, .55)}${shoe41(774, 360, 10, .55)}
     ${marker(60, 470, 7)}${marker(600, 470, 8)}
@@ -295,10 +327,11 @@
     `, '0 0 800 420');
   }
 
-  function horse(x, y, k, dark, flip) {
+  const pole = (x, y, k) => `<g transform="translate(${x} ${y}) scale(${k})"><path d="M0 -230V150" stroke="#d8c060" stroke-width="7"/><path d="M0 -230V150" stroke="#000" stroke-width="1.5" stroke-dasharray="6 10"/></g>`;
+  function horse(x, y, k, dark, flip, noPole) {
     const fill = dark ? '#111' : PAPER, line = dark ? '#fff' : '#000';
     return `<g transform="translate(${x} ${y}) scale(${flip ? -k : k} ${k})">
-      <path d="M0 -230V150" stroke="#d8c060" stroke-width="7"/><path d="M0 -230V150" stroke="#000" stroke-width="1.5" stroke-dasharray="6 10"/>
+      ${noPole ? '' : pole(0, 0, 1)}
       <path d="M-58 -2Q-84 4 -80 40" stroke="${line}" stroke-width="11" fill="none" stroke-linecap="round"/><path d="M-58 -2Q-84 4 -80 40" stroke="${fill}" stroke-width="7" fill="none" stroke-linecap="round"/>
       ${[['M38 12L56 34L46 58', 0], ['M28 16L36 50L30 64', 0], ['M-40 14L-48 40L-44 62', 0], ['M-28 16L-20 46L-26 62', 0]].map(([d]) => `<path d="${d}" stroke="${line}" stroke-width="13" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" stroke="${fill}" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}
       <ellipse cx="0" cy="0" rx="62" ry="26" fill="${fill}" stroke="${line}" stroke-width="2.5"/>
@@ -318,8 +351,9 @@
     <path d="M380 70H420V370H380Z" fill="#222" stroke="#fff" stroke-width="2"/>${range(8).map(i => `<circle cx="400" cy="${90 + i * 34}" r="4" fill="#d8c060"/>`).join('')}
     <ellipse cx="400" cy="384" rx="340" ry="30" fill="#141414" stroke="#fff" stroke-width="3"/>
     ${horse(700, 306, 1, false, true)}
+    ${pole(500, 296, 1.3)}
     ${hushFig(494, 268, .62)}
-    ${horse(500, 296, 1.3, true)}
+    ${horse(500, 296, 1.3, true, false, true)}
     <path d="M0 420Q20 250 110 222Q150 212 160 176L172 120L182 162L196 162L206 120L218 176Q228 212 200 236Q240 300 250 420Z" fill="#000" stroke="#fff" stroke-width="2"/>
     `, '0 0 800 420');
   }
@@ -342,13 +376,14 @@
       <path d="M290 236H520M290 256H500M290 276H540" stroke="#bbb" stroke-width="2"/>
       <rect x="470" y="226" width="70" height="86" fill="#fff" stroke="#000" stroke-width="2"/><rect x="476" y="232" width="58" height="62" fill="#2a2a2a"/><g transform="translate(505 262) scale(.5)">${bruceFace({})}</g>
     </g>
-    <path d="M90 420L190 320L270 380L210 420Z" fill="#161616" stroke="#fff" stroke-width="3"/><path d="M180 320L270 374" stroke="#5a0e16" stroke-width="10"/>
-    <g transform="translate(286 322) rotate(-28)">
-      <rect x="-40" y="-30" width="66" height="62" rx="18" fill="#0d0d0d" stroke="#fff" stroke-width="2.5"/>
-      ${[-22, -6, 10].map((yy, i) => `<rect x="10" y="${yy - 1}" width="${42 - i * 4}" height="15" rx="7.5" fill="#0d0d0d" stroke="#fff" stroke-width="2"/>`).join('')}
-      <rect x="10" y="22" width="30" height="13" rx="6.5" fill="#0d0d0d" stroke="#fff" stroke-width="2"/>
-      <path d="M-30 -30Q-20 -54 6 -50Q18 -46 12 -36L-6 -24" fill="#0d0d0d" stroke="#fff" stroke-width="2.5"/>
-      <path d="M-28 0Q-10 4 6 -6" stroke="#333" stroke-width="2" fill="none"/></g>
+    <path d="M560 420L676 420L560 318L512 340Z" fill="#171717" stroke="#fff" stroke-width="3" stroke-linejoin="round"/><path d="M520 336L566 318" stroke="#5a0e16" stroke-width="12"/>
+    <g transform="translate(528 302) rotate(-25)">
+      <rect x="-8" y="-84" width="16" height="78" rx="8" fill="#050505" stroke="#fff" stroke-width="2.6"/><path d="M-6 -54h12M-6 -30h12" stroke="#fff" stroke-width="1.2" opacity=".5"/>
+      <rect x="-28" y="-18" width="56" height="50" rx="16" fill="#050505" stroke="#fff" stroke-width="2.8"/>
+      <path d="M-20 -2h40M-20 10h40M-18 21h34" stroke="#fff" stroke-width="1.4" opacity=".55"/>
+      <path d="M-28 4Q-40 -6 -34 -20Q-28 -26 -18 -14" fill="#050505" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/>
+    </g>
+
     `, '0 0 800 420');
   }
   function flashbang() {
