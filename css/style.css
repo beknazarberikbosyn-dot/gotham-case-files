@@ -768,3 +768,59 @@ html:has(body.big-text){font-size:112.5%}
 }
 /* горящий Готэм на главном экране */
 .burning .px-title,.burning #pxTitle{text-shadow:0 0 18px rgba(208,20,44,.6)}
+
+/* ===== Глава I, дело 5: механики «Омеги» ===== */
+.big-line{font-family:var(--head);font-size:1.02rem;line-height:1.5;letter-spacing:.5px;margin:8px 0 2px}
+.navi{display:flex;flex-direction:column;align-items:center;gap:8px}
+.nv-svg{width:min(420px,100%);border:4px solid #fff;box-shadow:6px 6px 0 var(--red);background:#05080a}
+.nv-shake .nv-svg{animation:shk .3s}
+.nv-pad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(2,52px);gap:6px}
+.nv-pad .nv-b{padding:0;font-size:1.3rem;touch-action:manipulation}
+.nv-pad .nv-0{grid-area:1/2}.nv-pad .nv-3{grid-area:2/1}.nv-pad .nv-2{grid-area:2/2}.nv-pad .nv-1{grid-area:2/3}
+.nv-pad.rel{display:flex;gap:8px;grid-template-columns:none}
+.nv-pad.rel .nv-b{font-size:.8rem;padding:12px 14px}
+.dna{overflow-x:auto}
+.dn-strands{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;background:#06201c;border:3px solid #fff;box-shadow:6px 6px 0 var(--red);padding:12px}
+.dn-tri{display:grid;grid-template-columns:repeat(3,34px);gap:3px;position:relative;padding:4px;border:2px dashed #2c4753;padding-bottom:22px}
+.dn-tri.ok{border-color:#2fae5a}
+.dn-col{display:flex;flex-direction:column;align-items:center;gap:2px}
+.dn-col b{width:32px;height:30px;display:flex;align-items:center;justify-content:center;font-family:var(--head);font-weight:400;color:#000;border:2px solid #000}
+.dn-col i{width:3px;height:10px;background:#9fd}
+.dn-b{width:32px;height:30px;font-family:var(--head);font-size:1rem;background:#0c151c;color:#000;border:2px solid #9fd}
+.dn-b:not([style*=background]){color:#9fd}
+.dn-b.given{opacity:.7;cursor:default}
+.dn-l{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-family:var(--head);color:#2fae5a;font-size:.95rem}
+.dn-screen{margin-top:10px;text-align:center;font-family:monospace;color:var(--det);font-size:1rem}
+.dn-screen b{color:#fff;letter-spacing:3px}
+.simon{display:flex;flex-direction:column;align-items:center;gap:8px}
+.sm-pads{display:grid;grid-template-columns:repeat(2,120px);gap:10px}
+.sm-p{height:100px;border:4px solid #000;outline:3px solid #fff;background:color-mix(in srgb,var(--c) 30%,#000);color:#fff;font-family:var(--head);font-size:.72rem;letter-spacing:1px;transition:background .08s,transform .08s}
+.sm-p.on{background:var(--c);color:#000;transform:scale(1.05);box-shadow:0 0 22px var(--c)}
+.simon[data-mode=play] .sm-p{cursor:wait}
+.slide{display:flex;flex-direction:column;align-items:center}
+.sl-board{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;width:min(360px,92vw);aspect-ratio:1;background:#000;border:4px solid #fff;box-shadow:6px 6px 0 var(--red);padding:3px}
+.sl-t{background-size:300% 300%;background-color:#0b2a4a;border:1px solid #9fd0ff;position:relative;cursor:pointer;transition:transform .1s}
+.sl-t:hover{transform:scale(.97)}
+.sl-t i{position:absolute;left:4px;top:3px;font-family:var(--head);font-style:normal;font-size:.7rem;color:#ffd400;background:rgba(0,0,0,.6);padding:0 4px}
+.sl-e{background:#05080a}
+.sl-board.ok{gap:0}.sl-board.ok .sl-t{border-color:transparent}.sl-board.ok .sl-t i{display:none}
+.memo .mm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.mm-c{min-height:86px;background:#4a4a42;border:3px solid #000;outline:2px solid #cfd8e0;color:#111;font-size:.84rem;line-height:1.3;padding:8px;transition:transform .15s}
+.mm-c b{font-family:var(--head);font-size:1.6rem;color:#2a2a24}
+.mm-c.up{background:var(--paper)}
+.mm-c.up.b{background:#e8dcc0;font-style:italic}
+.mm-c.ok{outline-color:#2fae5a;background:#dff0d8}
+.mm-c:hover:not(.up){transform:translateY(-2px)}
+.rings{display:flex;flex-direction:column;align-items:center;gap:6px}
+.rg-svg{width:min(300px,86vw);border-radius:50%;box-shadow:6px 6px 0 var(--red)}
+.rg-svg.ok{filter:drop-shadow(0 0 10px #ffd400)}
+.rings .spot-count b{font-family:var(--head);color:var(--det);letter-spacing:4px;font-size:1.1rem}
+.rg-ctl{display:grid;gap:6px}
+.rg-row{display:grid;grid-template-columns:110px 52px 52px;gap:6px;align-items:center}
+.rg-row span{font-family:var(--head);font-size:.7rem;letter-spacing:1px;color:#cfd8e0}
+.rg-row .btn{padding:8px 0}
+.gt-svg{width:100%;display:block;border:3px solid #fff;box-shadow:6px 6px 0 var(--red)}
+.gt-sw{cursor:pointer}
+.fg-boss.omega span{color:#3fe0c5}
+.fg-boss.omega b{background:linear-gradient(90deg,#1d4a44,#3fe0c5)}
+@media (max-width:640px){.sm-pads{grid-template-columns:repeat(2,42vw)}.memo .mm-grid{grid-template-columns:repeat(2,1fr)}.mm-c{font-size:.76rem}.dn-tri{grid-template-columns:repeat(3,28px)}.dn-col b,.dn-b{width:27px}}

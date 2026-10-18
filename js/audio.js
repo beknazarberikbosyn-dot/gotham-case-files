@@ -234,6 +234,20 @@
         if (Math.random() < 0.2) piano([N.D5, N.F5, N.A4, N.E5][Math.floor(Math.random() * 4)], t, 0.03);
       }
     },
+    // Омега: пульс синтезатора, механический ритм
+    omega: {
+      bpm: 140, div: 2, len: 64, rain: 0,
+      play(i, t, s) {
+        const bar = Math.floor(i / 8) % 4, k = i % 8;
+        const ch = [[N.D3, N.F3, N.A3], [N.Bb2, N.D3, N.F3], [N.C3, N.E3, N.G3], [N.A2, N.Cs4 - 12, N.E3]][bar];
+        bass(ch[0] - 12, t, s * 0.6, k % 2 ? 0.08 : 0.16);
+        if (k === 0 || k === 3 || k === 6) kick(t, 0.28);
+        if (k === 4) { const h = noiseHit(t, 0.1, 2000, 0.07, 'bandpass'); out(h.g, 0.2); h.s.start(t); }
+        hat(t, k % 2 ? 0.015 : 0.03);
+        square(ch[(k * 2) % 3] + 24, t, s * 0.5, 0.012, 2600);
+        if (k === 0 && bar === 0) pad(ch.map(n => n + 12), t, s * 16, 0.02);
+      }
+    },
     // победа: бодрая восьмибитная фанфара
     cave: {
       bpm: 132, div: 2, len: 32, rain: 0,
@@ -296,6 +310,12 @@
       case 'boom': { const o = ctx.createOscillator(); o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(28, t + 1.4); const g = ctx.createGain(); env(g, t, 0.005, 0.55, 1.6); o.connect(g); g.connect(sfxBus); o.start(t); o.stop(t + 1.8); nz(t, 2.6, 380, 0.5, 'lowpass'); nz(t + 0.05, 0.6, 1500, 0.2, 'bandpass'); break; }
       case 'alarm': [0, 0.36, 0.72].forEach(d => { tone(880, t + d, 0.16, 'square', 0.035); tone(660, t + d + 0.18, 0.16, 'square', 0.035); }); break;
       case 'beep': tone(1320, t, 0.06, 'square', 0.03); break;
+      case 'n0': tone(NOTE(81), t, 0.3, 'triangle', 0.12); break;
+      case 'n1': tone(NOTE(57), t, 0.35, 'square', 0.06); break;
+      case 'n2': tone(NOTE(74), t, 0.12, 'sine', 0.12); tone(NOTE(74), t + 0.15, 0.12, 'sine', 0.12); break;
+      case 'n3': nz(t, 0.3, 2400, 0.09, 'bandpass'); break;
+      case 'punch': nz(t, 0.08, 500, 0.25, 'lowpass'); tone(80, t, 0.12, 'triangle', 0.2); break;
+      case 'flash': nz(t, 0.6, 3000, 0.18); tone(2600, t, 0.5, 'sine', 0.04); break;
       case 'key': nz(t, 0.02, 4000, 0.05); break;
       case 'zap': { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(1800, t); o.frequency.exponentialRampToValueAtTime(120, t + 0.25); const g = ctx.createGain(); env(g, t, 0.003, 0.06, 0.25); o.connect(g); g.connect(sfxBus); o.start(t); o.stop(t + 0.3); break; }
     }

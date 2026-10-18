@@ -124,8 +124,8 @@
     const box = $('fight');
     batHide(); box.hidden = false; document.body.classList.add('fighting');
     if (window.Sound) Sound.play(C.fight.music || 'duo');
-    Fight.start(box, {
-      diff, capsules: C.fight.capsules || 3, title: C.fight.title, intro: C.fight.intro,
+    (C.fight.engine ? window[C.fight.engine] : Fight).start(box, {
+      diff, capsules: C.fight.capsules || 3, title: C.fight.title, intro: C.fight.intro, cfg: C.fight,
       onWin: r => { box.hidden = true; box.innerHTML = ''; document.body.classList.remove('fighting'); st.solved.fight = true; st.fightHelp = !!(r && r.help); if (window.Sound) Sound.play(C.music); toFinale(); }
     });
   }
@@ -202,6 +202,7 @@
     if (st.finished) return;
     st.finished = true;
     batHide();
+    if (C.quietEnd) { endQuiet(); return; }
     finale();
   }
 
@@ -248,13 +249,15 @@
     $('case').scrollTop = 0;
     hud();
     if (sc.hack && !st.solved.hack) setTimeout(startHack, 400);
+    // сюжетная вставка при первом входе на место
+    if (sc.introStory && !(st.intro || (st.intro = {}))[i]) { st.intro[i] = true; setTimeout(() => playStory(sc.introStory, () => {}, sc.introCta || 'К ДЕЛУ →'), 450); }
   }
 
   function sceneComplete() {
     const sc = C.scenes[st.scene];
     st.announced[st.scene] = true;
     const t = nextTarget();
-    if (sc.outroStory) { const nx = C.scenes.findIndex((_, k) => !sceneDone(k)); batSay(sc.outro, 'БЭТМЕН', { label: sc.outroCta || 'ДАЛЬШЕ →', fn: () => { batHide(); playStory(sc.outroStory, () => { if (nx >= 0) goScene(nx); }, sc.outroStoryCta || 'ДАЛЬШЕ →'); } }); return; }
+    if (sc.outroStory) { const nx = C.scenes.findIndex((_, k) => !sceneDone(k)); batSay(sc.outro, 'БЭТМЕН', { label: sc.outroCta || 'ДАЛЬШЕ →', fn: () => { batHide(); playStory(sc.outroStory, () => { if (nx >= 0) goScene(nx); else if (allDone() && !C.noFinal) finalAction(); }, sc.outroStoryCta || 'ДАЛЬШЕ →'); } }); return; }
     batSay(sc.outro, 'БЭТМЕН', t ? { label: t.label, fn: () => { batHide(); t.fn(); } } : null);
   }
 
@@ -740,16 +743,16 @@
     interrogate(v, A, ctx) {
       let r = 0;
       const box = el('div', 'interro');
-      box.innerHTML = `<div class="i-face">${Art[v.portrait || 'phosPortrait']()}</div><div class="i-talk"><div class="i-log"></div><div class="i-now"></div><div class="order-h">ПРЕДЪЯВИТЬ УЛИКУ ИЗ БЛОКНОТА</div><div class="i-opts opts"></div><div class="i-step"></div></div>`;
+      box.innerHTML = `<div class="i-face">${Art[v.portrait || 'phosPortrait']()}</div><div class="i-talk"><div class="i-log"></div><div class="i-now"></div><div class="order-h">${v.optsLabel || 'ПРЕДЪЯВИТЬ УЛИКУ ИЗ БЛОКНОТА'}</div><div class="i-opts opts"></div><div class="i-step"></div></div>`;
       const log = box.querySelector('.i-log'), now = box.querySelector('.i-now'), opts = box.querySelector('.i-opts'), step = box.querySelector('.i-step');
       const render = () => {
         const R = v.rounds[r];
         now.innerHTML = `<p class="i-line">${R.line}</p>`;
-        step.textContent = `Ложь ${r + 1} из ${v.rounds.length}`;
+        step.textContent = `${v.stepWord || 'Ложь'} ${r + 1} из ${v.rounds.length}`;
         opts.replaceChildren(...R.options.map((o, i) => btn('opt', o, () => {
           if (R.answer.includes(i)) {
             sfx('ok');
-            log.insertAdjacentHTML('beforeend', `<p class="i-old">${R.line}</p><p class="i-ev">Робин: «${o}».</p><p class="i-rep">${R.reply}</p>`);
+            log.insertAdjacentHTML('beforeend', `<p class="i-old">${R.line}</p><p class="i-ev">Робин: ${/^«/.test(o) ? o : '«' + o + '».'}</p><p class="i-rep">${R.reply}</p>`);
             r++;
             if (r >= v.rounds.length) { now.innerHTML = ''; opts.innerHTML = ''; step.textContent = ''; setTimeout(() => ctx.solve(), 300); }
             else render();
@@ -1339,6 +1342,234 @@
     }
   });
 
+  /* ================= НОВЫЕ МЕХАНИКИ (глава I, дело 5) ================= */
+  const BASE_COL = { A: '#2fae5a', T: '#d0142c', G: '#ffd400', C: '#2f6bff' };
+  const PAIR = { A: 'T', T: 'A', G: 'C', C: 'G' };
+  Object.assign(TYPES, {
+    /* --- лабиринт замка вслепую: Оракул диктует, Робин ведёт импульс --- */
+    navi(v, A, ctx) {
+      const rows = v.rows, R = rows.length, Cn = rows[0].length, CS = 34;
+      let S0 = [0, 0], E0 = [0, 0];
+      rows.forEach((row, r) => row.split('').forEach((ch, c) => { if (ch === 'S') S0 = [r, c]; if (ch === 'E') E0 = [r, c]; }));
+      const DR = [[-1, 0], [0, 1], [1, 0], [0, -1]], ARW = ['↑', '→', '↓', '←'];
+      let pos = S0.slice(), dir = v.startDir == null ? 1 : v.startDir, trail = [S0.join()], walls = new Set(), done = false, resets = 0, bump = null;
+      const wrap = el('div', 'navi');
+      const draw = () => {
+        let h = `<rect width="${Cn * CS}" height="${R * CS}" fill="#05080a"/>`;
+        for (let r = 0; r < R; r++) for (let c = 0; c < Cn; c++) {
+          const k = r + ',' + c, x = c * CS, y = r * CS;
+          h += `<rect x="${x + 1}" y="${y + 1}" width="${CS - 2}" height="${CS - 2}" fill="${walls.has(k) ? (bump === k ? '#d0142c' : '#3a0d12') : trail.includes(k) ? '#0f3a33' : '#0b1216'}" stroke="#13202a"/>`;
+        }
+        for (let i = 1; i < trail.length; i++) { const [r1, c1] = trail[i - 1].split(',').map(Number), [r2, c2] = trail[i].split(',').map(Number); h += `<path d="M${c1 * CS + CS / 2} ${r1 * CS + CS / 2}L${c2 * CS + CS / 2} ${r2 * CS + CS / 2}" stroke="#3fe0c5" stroke-width="4" stroke-linecap="round"/>`; }
+        h += `<g><rect x="${E0[1] * CS + 4}" y="${E0[0] * CS + 4}" width="${CS - 8}" height="${CS - 8}" fill="none" stroke="#ffd400" stroke-width="2.5" stroke-dasharray="4 3"/><text x="${E0[1] * CS + CS / 2}" y="${E0[0] * CS + CS / 2 + 5}" font-family="Russo One, Arial Black, sans-serif" font-size="13" text-anchor="middle" fill="#ffd400">⏻</text></g>`;
+        h += `<g transform="translate(${pos[1] * CS + CS / 2} ${pos[0] * CS + CS / 2})"><circle r="11" fill="#3fe0c5" filter="url(#glowS)"/>${v.relative ? `<path d="M0 -9L6 3H-6Z" fill="#000" transform="rotate(${dir * 90})"/>` : '<circle r="4" fill="#000"/>'}</g>`;
+        wrap.querySelector('.nv-svg').innerHTML = h;
+        wrap.querySelector('.nv-stat').textContent = `Шагов: ${trail.length - 1} · сбросов защиты: ${resets}${v.relative ? ' · импульс смотрит ' + ['вверх', 'вправо', 'вниз', 'влево'][dir] : ''}`;
+      };
+      const step = d => {
+        if (done) return;
+        const nr = pos[0] + DR[d][0], nc = pos[1] + DR[d][1];
+        const ch = (rows[nr] || '')[nc];
+        if (!ch || ch === '#') {
+          const k = nr + ',' + nc; walls.add(k); bump = k; resets++;
+          sfx('wrong'); $('mFeedback').textContent = 'Контакт замкнулся на стенку: защита сбросила импульс к началу.';
+          wrap.classList.remove('nv-shake'); void wrap.offsetWidth; wrap.classList.add('nv-shake');
+          pos = S0.slice(); dir = v.startDir == null ? 1 : v.startDir; trail = [S0.join()]; draw(); setTimeout(() => { bump = null; if (!done) draw(); }, 500); return;
+        }
+        $('mFeedback').textContent = '';
+        pos = [nr, nc]; trail.push(pos.join()); sfx('tick'); draw();
+        if (ch === 'E') { done = true; sfx('clunk'); setTimeout(() => ctx.solve(), 600); }
+      };
+      wrap.innerHTML = `<svg viewBox="0 0 ${Cn * CS} ${R * CS}" class="nv-svg"></svg><p class="spot-count nv-stat"></p><div class="nv-pad"></div>`;
+      const pad = wrap.querySelector('.nv-pad');
+      if (v.relative) {
+        pad.classList.add('rel');
+        pad.append(btn('btn ghost nv-b', '↶ НАЛЕВО', () => { dir = (dir + 3) % 4; sfx('click'); draw(); }), btn('btn nv-b', 'ВПЕРЁД ↑', () => step(dir)), btn('btn ghost nv-b', 'НАПРАВО ↷', () => { dir = (dir + 1) % 4; sfx('click'); draw(); }));
+        pad.children[0].dataset.k = 'L'; pad.children[1].dataset.k = 'F'; pad.children[2].dataset.k = 'R';
+      } else {
+        [0, 3, 1, 2].forEach(d => { const b = btn('btn ghost nv-b nv-' + d, ARW[d], () => step(d)); b.dataset.k = d; b.setAttribute('aria-label', ['Вверх', 'Вправо', 'Вниз', 'Влево'][d]); pad.appendChild(b); });
+      }
+      const key = e => {
+        const m = { ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3 }[e.key];
+        if (m == null) return; e.preventDefault();
+        if (!v.relative) step(m); else if (m === 0) step(dir); else if (m === 1) { dir = (dir + 1) % 4; draw(); } else if (m === 3) { dir = (dir + 3) % 4; draw(); }
+      };
+      document.addEventListener('keydown', key); current.cleanup.push(() => document.removeEventListener('keydown', key));
+      A.append(wrap, el('p', 'note', v.naviNote || 'Стены замка не видны. Веди импульс по командам Оракула. Задел стенку — защита вернёт импульс к началу, но стенка останется подсвеченной.'));
+      draw();
+      return { noCheck: true, empty: () => true, check: () => done };
+    },
+    /* --- секвенатор: собрать вторую нить ДНК --- */
+    dna(v, A, ctx) {
+      const top = v.top.split(''), n = top.length, sol = top.map(b => PAIR[b]);
+      const bot = top.map((_, i) => (v.given || []).includes(i) ? sol[i] : '');
+      const CYC = ['A', 'T', 'G', 'C'];
+      let done = false;
+      const wrap = el('div', 'dna');
+      const draw = () => {
+        let h = '<div class="dn-strands">';
+        for (let t = 0; t < n / 3; t++) {
+          const tri = bot.slice(t * 3, t * 3 + 3).join(''), ok = tri.length === 3 && tri === sol.slice(t * 3, t * 3 + 3).join('');
+          h += `<div class="dn-tri${ok ? ' ok' : ''}">`;
+          for (let k = 0; k < 3; k++) {
+            const i = t * 3 + k;
+            h += `<div class="dn-col"><b style="background:${BASE_COL[top[i]]}">${top[i]}</b><i></i><button type="button" class="dn-b${(v.given || []).includes(i) ? ' given' : ''}" data-i="${i}" style="${bot[i] ? 'background:' + BASE_COL[bot[i]] : ''}" aria-label="Основание ${i + 1}">${bot[i] || '·'}</button></div>`;
+          }
+          h += `<span class="dn-l">${ok ? (v.codons[tri] || '?') : tri.length === 3 ? '?' : ''}</span></div>`;
+        }
+        wrap.innerHTML = h + '</div><div class="dn-screen">ДОНОР: <b>' + (done ? v.word : bot.every(Boolean) ? '— ОШИБКА СБОРКИ —' : '…') + '</b></div>';
+      };
+      wrap.addEventListener('click', e => {
+        const b = e.target.closest('.dn-b'); if (!b || done || b.classList.contains('given')) return;
+        const i = +b.dataset.i; bot[i] = CYC[(CYC.indexOf(bot[i]) + 1) % 4]; sfx('tick');
+        if (bot.every((x, k) => x === sol[k])) { done = true; sfx('ok'); setTimeout(() => ctx.solve(), 900); }
+        draw();
+      });
+      A.append(wrap, el('p', 'note', 'Нажимай на нижнюю клетку, чтобы сменить основание. Под каждой тройкой секвенатор пишет букву, если тройка собрана верно.'));
+      draw();
+      return { noCheck: true, keep: true, empty: () => true, check: () => done };
+    },
+    /* --- звуковая камера: повтори сигналы --- */
+    simon(v, A, ctx) {
+      const COLS = ['#3fe0c5', '#d0142c', '#ffd400', '#e8e8e8'], NAMES = ['ВЫСОКИЙ', 'НИЗКИЙ', 'ДВОЙНОЙ', 'ШУМ'];
+      let k = 0, idx = 0, mode = 'wait', tms = [];
+      const wrap = el('div', 'simon');
+      wrap.innerHTML = `<p class="spot-count sm-stat"></p><div class="sm-pads">${COLS.map((c, i) => `<button type="button" class="sm-p" data-i="${i}" style="--c:${c}"><span>${NAMES[i]}</span></button>`).join('')}</div><div class="mech-row"><button type="button" class="btn sm-go">СЛУШАТЬ</button></div>`;
+      const stat = wrap.querySelector('.sm-stat'), pads = [...wrap.querySelectorAll('.sm-p')], go = wrap.querySelector('.sm-go');
+      const clear = () => { tms.forEach(clearTimeout); tms = []; };
+      current.cleanup.push(clear);
+      const flash = i => { pads[i].classList.add('on'); sfx('n' + i); tms.push(setTimeout(() => pads[i].classList.remove('on'), Math.min(380, v.speed * 0.7))); };
+      const upd = () => { stat.textContent = `Серия ${Math.min(k + 1, v.rounds.length)} из ${v.rounds.length} · ${mode === 'play' ? 'слушай…' : mode === 'input' ? 'повтори: ' + idx + ' из ' + v.rounds[k] : 'нажми «Слушать»'}`; wrap.dataset.mode = mode; };
+      const play = () => {
+        clear(); mode = 'play'; idx = 0; upd(); go.disabled = true;
+        const L = v.rounds[k];
+        for (let j = 0; j < L; j++) tms.push(setTimeout(() => flash(v.seq[j]), 500 + j * v.speed));
+        tms.push(setTimeout(() => { mode = 'input'; go.disabled = false; go.textContent = 'ПОВТОРИТЬ СЕРИЮ'; upd(); }, 500 + L * v.speed));
+      };
+      pads.forEach((p, i) => p.addEventListener('click', () => {
+        if (mode !== 'input') return;
+        flash(i);
+        if (i !== v.seq[idx]) { sfx('wrong'); $('mFeedback').textContent = 'Не тот сигнал. Серия заново.'; mode = 'wait'; upd(); tms.push(setTimeout(play, 900)); return; }
+        idx++; $('mFeedback').textContent = '';
+        if (idx >= v.rounds[k]) {
+          k++;
+          if (k >= v.rounds.length) { mode = 'done'; stat.textContent = 'Все серии повторены.'; sfx('ok'); setTimeout(() => ctx.solve(), 700); return; }
+          mode = 'wait'; upd(); tms.push(setTimeout(play, 900));
+        } else upd();
+      }));
+      go.onclick = () => play();
+      A.append(wrap); upd();
+      return { noCheck: true, empty: () => true, check: () => mode === 'done' };
+    },
+    /* --- разрезанный чертёж: пятнашки 3×3 --- */
+    slide(v, A, ctx) {
+      const n = 3;
+      const board = Array.from({ length: n * n }, (_, i) => i < n * n - 1 ? i : null);
+      let empty = n * n - 1;
+      v.path.slice(1).forEach(p => { board[empty] = board[p]; board[p] = null; empty = p; });
+      const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(Art[v.art]());
+      let done = false, moves = 0;
+      const wrap = el('div', 'slide');
+      const draw = () => {
+        wrap.innerHTML = `<div class="sl-board${done ? ' ok' : ''}">${board.map((t, p) => t == null ? `<div class="sl-e"></div>` : `<button type="button" class="sl-t" data-pos="${p}" style="background-image:url(&quot;${url}&quot;);background-position:${(t % n) * 50}% ${Math.floor(t / n) * 50}%"><i>${t + 1}</i></button>`).join('')}</div><p class="spot-count">Ходов: ${moves}</p>`;
+      };
+      wrap.addEventListener('click', e => {
+        const b = e.target.closest('.sl-t'); if (!b || done) return;
+        const p = +b.dataset.pos, pr = Math.floor(p / n), pc = p % n, er = Math.floor(empty / n), ec = empty % n;
+        if (Math.abs(pr - er) + Math.abs(pc - ec) !== 1) { sfx('scrape'); return; }
+        board[empty] = board[p]; board[p] = null; empty = p; moves++; sfx('tick');
+        if (board.every((t, i) => i === n * n - 1 ? t == null : t === i)) { done = true; sfx('ok'); setTimeout(() => ctx.solve(), 900); }
+        draw();
+      });
+      A.append(wrap, el('p', 'note', 'Нажимай на кусок рядом с пустой клеткой, чтобы сдвинуть его. Номера в углу — подсказка порядка.'));
+      draw();
+      return { noCheck: true, empty: () => true, check: () => done };
+    },
+    /* --- картотека: найти пары «причина — следствие» --- */
+    memory(v, A, ctx) {
+      const cards = shuffle(v.pairs.flatMap(([a, b], k) => [{ t: a, k, s: 'a' }, { t: b, k, s: 'b' }]));
+      const matched = new Set();
+      let open = [], lock = false;
+      const wrap = el('div', 'memo');
+      const draw = () => {
+        wrap.innerHTML = `<div class="mm-grid">${cards.map((c, i) => { const up = matched.has(c.k) || open.includes(i); return `<button type="button" class="mm-c${up ? ' up' : ''}${matched.has(c.k) ? ' ok' : ''} ${c.s}" data-i="${i}" data-k="${c.k}">${up ? `<span>${c.t}</span>` : '<b>?</b>'}</button>`; }).join('')}</div><p class="spot-count">Пар найдено: ${matched.size} из ${v.pairs.length}</p>`;
+      };
+      wrap.addEventListener('click', e => {
+        const b = e.target.closest('.mm-c'); if (!b || lock) return;
+        const i = +b.dataset.i, c = cards[i];
+        if (matched.has(c.k) || open.includes(i)) return;
+        open.push(i); sfx('page'); draw();
+        if (open.length === 2) {
+          const [x, y] = open.map(j => cards[j]);
+          if (x.k === y.k) { matched.add(x.k); open = []; sfx('ok'); draw(); if (matched.size === v.pairs.length) setTimeout(() => ctx.solve(), 800); }
+          else { lock = true; setTimeout(() => { open = []; lock = false; sfx('scrape'); draw(); }, 1100); }
+        }
+      });
+      A.append(wrap, el('p', 'note', 'Открывай по две карточки. Пара — это причина и то, к чему она привела. Не пара — карточки перевернутся обратно.'));
+      draw();
+      return { noCheck: true, empty: () => true, check: () => matched.size === v.pairs.length };
+    },
+    /* --- кодовый цилиндр: повернуть кольца, чтобы в окне сложилось слово --- */
+    rings(v, A, ctx) {
+      const rot = v.start.slice(), N = 8;
+      let done = false;
+      const wrap = el('div', 'rings');
+      const draw = () => {
+        const word = v.rings.map((r, i) => r[((rot[i] % N) + N) % N]).join('');
+        let h = `<rect width="300" height="300" fill="#0b0d10"/><circle cx="150" cy="150" r="148" fill="#1b1f24" stroke="#c8a64a" stroke-width="3"/>`;
+        v.rings.forEach((ring, i) => {
+          const rr = 142 - i * 29;
+          h += `<circle cx="150" cy="150" r="${rr}" fill="${i % 2 ? '#2a2f36' : '#20252b'}" stroke="#555" stroke-width="2"/>`;
+          ring.split('').forEach((ch, j) => {
+            const a = ((j - rot[i]) * 360 / N) * Math.PI / 180, x = 150 + Math.sin(a) * (rr - 14), y = 150 - Math.cos(a) * (rr - 14);
+            h += `<text x="${x.toFixed(1)}" y="${(y + 6).toFixed(1)}" font-family="Russo One, Arial Black, sans-serif" font-size="16" text-anchor="middle" fill="${j === ((rot[i] % N) + N) % N ? '#ffd400' : '#cfd8e0'}">${ch}</text>`;
+          });
+        });
+        h += `<circle cx="150" cy="150" r="24" fill="#111" stroke="#c8a64a" stroke-width="3"/><text x="150" y="157" font-family="Russo One, Arial Black, sans-serif" font-size="18" text-anchor="middle" fill="#3fe0c5">Ω</text>
+          <rect x="136" y="4" width="28" height="124" rx="6" fill="#ffd400" opacity=".12" stroke="#ffd400" stroke-width="2"/>`;
+        wrap.innerHTML = `<svg viewBox="0 0 300 300" class="rg-svg${done ? ' ok' : ''}">${h}</svg><p class="spot-count">В окне сверху вниз: <b>${word}</b></p><div class="rg-ctl">${v.rings.map((_, i) => `<div class="rg-row"><span>${['ВНЕШНЕЕ', 'ВТОРОЕ', 'ТРЕТЬЕ', 'ВНУТРЕННЕЕ'][i] || 'КОЛЬЦО ' + (i + 1)}</span><button type="button" class="btn ghost rg-b" data-r="${i}" data-d="-1" aria-label="Повернуть назад">◀</button><button type="button" class="btn ghost rg-b" data-r="${i}" data-d="1" aria-label="Повернуть вперёд">▶</button></div>`).join('')}</div>`;
+        return word;
+      };
+      wrap.addEventListener('click', e => {
+        const b = e.target.closest('.rg-b'); if (!b || done) return;
+        rot[+b.dataset.r] += +b.dataset.d; sfx('tick');
+        if (draw() === v.word) { done = true; sfx('clunk'); draw(); setTimeout(() => ctx.solve(), 800); }
+      });
+      A.appendChild(wrap); draw();
+      return { noCheck: true, empty: () => true, check: () => done };
+    },
+    /* --- логическая схема: тумблеры на входе, лампы на выходе --- */
+    gates(v, A, ctx) {
+      const val = {}; v.inputs.forEach(x => { val[x.id] = 0; });
+      const OPS = { AND: ['И', a => a.every(Boolean)], OR: ['ИЛИ', a => a.some(Boolean)], NOT: ['НЕ', a => !a[0]], XOR: ['ИСКЛ. ИЛИ', a => a.filter(Boolean).length === 1] };
+      let done = false;
+      const wrap = el('div', 'gates');
+      const calc = () => { v.gates.forEach(g => { val[g.id] = OPS[g.op][1](g.in.map(i => val[i])) ? 1 : 0; }); v.outs.forEach(o => { val[o.id] = val[o.from]; }); };
+      const src = id => { const i = v.inputs.find(x => x.id === id); if (i) return [70, i.y]; const g = v.gates.find(x => x.id === id); return [g.x + 74, g.y]; };
+      const draw = () => {
+        calc();
+        let h = `<rect width="560" height="300" fill="#071016"/><g stroke="#0e1d26" stroke-width="1">${Array.from({ length: 29 }, (_, i) => `<path d="M${i * 20} 0V300"/>`).join('')}${Array.from({ length: 16 }, (_, i) => `<path d="M0 ${i * 20}H560"/>`).join('')}</g>`;
+        const wire = (from, tx, ty, k) => { const [sx, sy] = src(from), mx = tx - 12 - k * 8; return `<path d="M${sx} ${sy}H${mx}V${ty}H${tx}" fill="none" stroke="${val[from] ? '#ffd400' : '#3a4650'}" stroke-width="${val[from] ? 3.5 : 2.5}"/>`; };
+        v.gates.forEach(g => g.in.forEach((id, k) => { h += wire(id, g.x, g.y - 20 + (k + 1) * 40 / (g.in.length + 1), k); }));
+        v.outs.forEach(o => { h += wire(o.from, 470, o.y, 0); });
+        v.inputs.forEach(x => { h += `<g class="gt-sw" data-id="${x.id}"><rect x="14" y="${x.y - 18}" width="56" height="36" rx="6" fill="#0d1a22" stroke="#9fd" stroke-width="2"/><rect x="${val[x.id] ? 44 : 20}" y="${x.y - 12}" width="20" height="24" rx="4" fill="${val[x.id] ? '#ffd400' : '#555'}"/><text x="11" y="${x.y + 5}" font-family="Russo One, Arial Black, sans-serif" font-size="12" text-anchor="end" fill="#cfd8e0">${x.id}</text><text x="42" y="${x.y + 32}" font-family="monospace" font-size="9" text-anchor="middle" fill="#9fd">${val[x.id] ? 'ВКЛ' : 'ВЫКЛ'}</text></g>`; });
+        v.gates.forEach(g => { h += `<rect x="${g.x}" y="${g.y - 20}" width="74" height="40" rx="8" fill="#13232c" stroke="${val[g.id] ? '#ffd400' : '#6a7a8a'}" stroke-width="2.5"/><text x="${g.x + 37}" y="${g.y + 5}" font-family="Russo One, Arial Black, sans-serif" font-size="${OPS[g.op][0].length > 4 ? 10 : 13}" text-anchor="middle" fill="#fff">${OPS[g.op][0]}</text>`; });
+        v.outs.forEach(o => { const on = !!val[o.id], ok = +on === o.want; h += `<circle cx="490" cy="${o.y}" r="16" fill="${on ? '#ffd400' : '#1a1a1a'}" stroke="${ok ? '#2fae5a' : '#d0142c'}" stroke-width="3" ${on ? 'filter="url(#glowS)"' : ''}/><text x="490" y="${o.y + 34}" font-family="Russo One, Arial Black, sans-serif" font-size="10" text-anchor="middle" fill="#fff">${o.label}</text><text x="490" y="${o.y - 24}" font-family="monospace" font-size="9" text-anchor="middle" fill="${ok ? '#2fae5a' : '#ff8a96'}">${o.want ? 'ДОЛЖНА ГОРЕТЬ' : 'ДОЛЖНА ПОГАСНУТЬ'}</text>`; });
+        wrap.innerHTML = `<svg viewBox="0 0 560 300" class="gt-svg">${h}</svg>`;
+        return v.outs.every(o => +!!val[o.id] === o.want);
+      };
+      wrap.addEventListener('click', e => {
+        const g = e.target.closest('.gt-sw'); if (!g || done) return;
+        val[g.dataset.id] ^= 1; sfx('click');
+        if (draw()) { done = true; sfx('clunk'); setTimeout(() => ctx.solve(), 800); }
+      });
+      A.append(wrap, el('p', 'note', 'Нажимай на тумблеры слева. Жёлтый провод — ток есть, серый — нет. Рамка лампы зелёная, когда лампа в нужном положении.'));
+      draw();
+      return { noCheck: true, empty: () => true, check: () => done };
+    }
+  });
+
+
 
   function options(v, A, many) {
     const sel = new Set();
@@ -1363,6 +1594,8 @@
   function variant(clue) { return Object.assign({}, clue, clue[diff] || {}); }
 
   function openClue(clue) {
+    // улика, которая открывается только после другой
+    if (clue.needs && !st.solved[clue.needs]) { batSay(clue.needsSay || 'Сначала разберись с другой уликой на этом месте.', clue.needsTag || 'РОБИН'); return; }
     if (current) current.cleanup.forEach(f => f());
     const v = variant(clue);
     current = { clue, v, cleanup: [] };

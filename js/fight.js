@@ -379,5 +379,5 @@
     return api;
   }
 
-  window.Fight = { start };
+  window.Fight = { start, drawRobin };
 })();
