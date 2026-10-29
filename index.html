@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Balsamiq+Sans:wght@400;700&family=Press+Start+2P&family=Russo+One&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=13">
+<link rel="stylesheet" href="css/style.css?v=14">
 </head>
 <body>
 
@@ -65,6 +65,7 @@
       <p class="px-sub" id="pxSub">Патруль. Ночь. Дождь.</p>
     </header>
     <div id="files" class="files" hidden>
+      <div class="game-bar"><span class="gb-name">ИГРА: <b id="gameName"></b></span><button class="px-btn" id="newGameBtn" type="button">НОВАЯ ИГРА</button><button class="px-btn dim" id="savesBtn" type="button">АРХИВ ИГР</button></div>
       <p class="px-prompt">ВЫБЕРИ ДЕЛО, РОБИН</p>
       <div class="stack" id="stack"></div>
     </div>
@@ -81,6 +82,21 @@
         <button class="diff-b" id="skipYes" type="button"><b>ДА, НАЧАТЬ КАМПАНИЮ</b><i>учебные дела останутся открыты — к ним можно вернуться в любой момент</i></button>
         <button class="diff-b alt" id="skipNo" type="button"><b>НЕТ, СНАЧАЛА СТАЖИРОВКА</b><i>вернуться к учебным делам</i></button>
       </div>
+    </div>
+    <div id="newGame" class="diff chapter-panel" hidden>
+      <p class="px-line">НОВАЯ ИГРА</p>
+      <p class="ch-intro" id="ngText"></p>
+      <label class="ng-label">Название новой игры<input type="text" id="ngName" maxlength="40" autocomplete="off" spellcheck="false"></label>
+      <div class="diff-list">
+        <button class="diff-b" id="ngYes" type="button"><b>НАЧАТЬ С ЧИСТОГО ЛИСТА</b><i>все дела снова закрыты, стажировка с первого дела</i></button>
+        <button class="diff-b alt" id="ngNo" type="button"><b>ОТМЕНА</b><i>вернуться к делам текущей игры</i></button>
+      </div>
+    </div>
+    <div id="savesPanel" class="diff chapter-panel saves-panel" hidden>
+      <p class="px-line">АРХИВ ИГР</p>
+      <p class="ch-intro">Здесь хранятся все твои игры: прогресс по делам и журнал каждого закрытого дела. Игры сохраняются в этом браузере автоматически.</p>
+      <div class="saves-list" id="savesList"></div>
+      <button class="px-btn dim" id="savesBack" type="button">← К ДЕЛАМ</button>
     </div>
     <div id="diff" class="diff" hidden>
       <p class="px-line" id="diffCase"></p>
@@ -184,26 +200,27 @@
   </div>
 </div>
 
-<script src="js/audio.js?v=13"></script>
-<script src="js/pixel.js?v=13"></script>
-<script src="js/art.js?v=13"></script>
-<script src="js/art3.js?v=13"></script>
-<script src="js/art4.js?v=13"></script>
-<script src="js/case1.js?v=13"></script>
-<script src="js/case2.js?v=13"></script>
-<script src="js/case3.js?v=13"></script>
-<script src="js/camp1.js?v=13"></script>
-<script src="js/art5.js?v=13"></script>
-<script src="js/camp2.js?v=13"></script>
-<script src="js/art6.js?v=13"></script>
-<script src="js/camp3.js?v=13"></script>
-<script src="js/fight.js?v=13"></script>
-<script src="js/art7.js?v=13"></script>
-<script src="js/camp4.js?v=13"></script>
-<script src="js/hack.js?v=13"></script>
-<script src="js/art8.js?v=13"></script>
-<script src="js/camp5.js?v=13"></script>
-<script src="js/fight2.js?v=13"></script>
-<script src="js/game.js?v=13"></script>
+<script src="js/saves.js?v=14"></script>
+<script src="js/audio.js?v=14"></script>
+<script src="js/pixel.js?v=14"></script>
+<script src="js/art.js?v=14"></script>
+<script src="js/art3.js?v=14"></script>
+<script src="js/art4.js?v=14"></script>
+<script src="js/case1.js?v=14"></script>
+<script src="js/case2.js?v=14"></script>
+<script src="js/case3.js?v=14"></script>
+<script src="js/camp1.js?v=14"></script>
+<script src="js/art5.js?v=14"></script>
+<script src="js/camp2.js?v=14"></script>
+<script src="js/art6.js?v=14"></script>
+<script src="js/camp3.js?v=14"></script>
+<script src="js/fight.js?v=14"></script>
+<script src="js/art7.js?v=14"></script>
+<script src="js/camp4.js?v=14"></script>
+<script src="js/hack.js?v=14"></script>
+<script src="js/art8.js?v=14"></script>
+<script src="js/camp5.js?v=14"></script>
+<script src="js/fight2.js?v=14"></script>
+<script src="js/game.js?v=14"></script>
 </body>
 </html>

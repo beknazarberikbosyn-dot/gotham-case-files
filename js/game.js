@@ -111,11 +111,17 @@
     Hack.start(box, Object.assign({ diff }, H, { onEnd: () => { st.solved.hack = true; box.hidden = true; box.innerHTML = ''; document.body.classList.remove('fighting'); endQuiet(); } }));
   }
   // конец дела без пещеры и без очков на экране: результат сохраняется молча
+  // запись о закрытом деле в журнал текущей игры
+  function logRun(pts, easiest) {
+    if (!window.Saves) return;
+    Saves.logRun({ id: C.id, title: C.title, label: C.campaign ? 'Гл. ' + 'I'.repeat(C.chapter) + ' · дело ' + C.no : 'Учебное дело №' + C.no, diff: easiest, pts, hints: Object.keys(st.helped).length, total: TOTAL, help: !!st.fightHelp });
+  }
   function endQuiet() {
     const pts = score(), easiest = Object.keys(st.diffs).sort((a, b) => DIFF_RANK[a] - DIFF_RANK[b])[0] || diff;
     const best = store.get(C.id);
     if (!best || pts > best.pts) store.set(C.id, { pts, diff: easiest });
     if (C.after && C.after.flag) { try { localStorage.setItem(C.after.flag, '1'); } catch (_) {} }
+    logRun(pts, easiest);
     const go = () => Pixel.wipe($('wipe'), () => location.reload());
     if (C.finale && C.finale.length) playStory(C.finale, go, C.finaleCta || 'ДАЛЬШЕ →'); else go();
   }
@@ -1746,6 +1752,7 @@
         const t = setInterval(() => { n = Math.min(pts, n + 5); $('scoreNum').textContent = n; if (n >= pts) clearInterval(t); }, 40);
         const best = store.get(C.id);
         if (!best || pts > best.pts || (pts === best.pts && DIFF_RANK[easiest] > DIFF_RANK[best.diff])) store.set(C.id, { pts, diff: easiest });
+        logRun(pts, easiest);
       });
     }, 'В ПЕЩЕРУ →');
   }
@@ -1824,6 +1831,77 @@
   }
   function closeSettings() { $('settings').hidden = true; }
 
+  /* ---------- новая игра и архив игр ---------- */
+  const fmtDate = t => { const d = new Date(t), p = n => String(n).padStart(2, '0'); return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function saveStats(sv) {
+    const best = id => { try { return JSON.parse(sv.data['gcf_best_' + id] || 'null'); } catch (_) { return null; } };
+    const training = CASES.filter(cs => best(cs.id)).length;
+    const camp = CAMPAIGN.flatMap(ch => ch.cases), campDone = camp.filter(cs => best(cs.id)).length;
+    const pts = CASES.concat(camp).reduce((n, cs) => n + ((best(cs.id) || {}).pts || 0), 0);
+    return { training, campDone, campAll: camp.length + CAMPAIGN.reduce((n, ch) => n + ch.soon.length, 0), pts, runs: (sv.runs || []).length };
+  }
+  function initSaves() {
+    if (!window.Saves || !Saves.ok) { $('newGameBtn').hidden = true; $('savesBtn').hidden = true; $('gameName').textContent = 'без сохранений (браузер запретил хранилище)'; return; }
+    const cur = Saves.active();
+    $('gameName').textContent = cur.name;
+    const panels = ['files', 'newGame', 'savesPanel'];
+    const showPanel = id => panels.forEach(p => { $(p).hidden = p !== id; });
+    const go = () => { sfx('boost'); Pixel.wipe($('wipe'), () => location.reload()); };
+    $('newGameBtn').onclick = e => {
+      e.stopPropagation(); sfx('click');
+      const st0 = saveStats(Object.assign({}, cur, { data: (() => { Saves.sync(); return Saves.active().data; })() }));
+      $('ngText').textContent = `Текущая игра «${cur.name}» не пропадёт: она останется в архиве со всем прогрессом (учебных дел пройдено ${st0.training} из ${CASES.length}, дел кампании — ${st0.campDone}), и к ней можно вернуться в любой момент. Новая игра начнётся со стажировки, все дела снова будут закрыты.`;
+      $('ngName').value = 'Игра ' + (Saves.list().length + 1);
+      showPanel('newGame');
+      if (window.innerWidth > 900) $('ngName').select();
+    };
+    $('ngName').onclick = e => e.stopPropagation();
+    $('ngName').onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') $('ngYes').click(); };
+    $('ngYes').onclick = e => { e.stopPropagation(); Saves.newGame($('ngName').value); go(); };
+    $('ngNo').onclick = e => { e.stopPropagation(); sfx('click'); showPanel('files'); };
+    $('savesBtn').onclick = e => { e.stopPropagation(); sfx('click'); renderSaves(); showPanel('savesPanel'); };
+    $('savesBack').onclick = e => { e.stopPropagation(); sfx('click'); showPanel('files'); };
+    function renderSaves() {
+      const box = $('savesList'); box.innerHTML = '';
+      Saves.list().forEach(sv => {
+        const s1 = saveStats(sv);
+        const card = el('div', 'save-card' + (sv.active ? ' cur' : ''));
+        card.innerHTML = `<div class="sv-head"><b class="sv-name">${esc(sv.name)}</b>${sv.active ? '<span class="sv-tag">ТЕКУЩАЯ</span>' : ''}</div>
+          <p class="sv-meta">Начата ${fmtDate(sv.created)} · последняя запись ${fmtDate(sv.updated)}</p>
+          <div class="sv-stats"><span>Учебные дела <b>${s1.training}/${CASES.length}</b></span><span>Кампания <b>${s1.campDone}/${s1.campAll}</b></span><span>Очки <b>${s1.pts}</b></span><span>Закрыто дел <b>${s1.runs}</b></span></div>`;
+        const runs = (sv.runs || []).slice().reverse();
+        if (runs.length) {
+          const det = el('details', 'sv-runs');
+          det.innerHTML = `<summary>Журнал дел (${runs.length})</summary><table><tr><th>Дата</th><th>Дело</th><th>Сложность</th><th>Очки</th><th>Подсказки</th></tr>${runs.map(r => `<tr><td>${fmtDate(r.date)}</td><td>${esc(r.label)} · ${esc(r.title)}</td><td>${(DIFFS[r.diff] || {}).name || '—'}</td><td>${r.pts}</td><td>${r.hints}${r.total ? ' из ' + r.total : ''}${r.help ? ' · бой с помощью' : ''}</td></tr>`).join('')}</table>`;
+          det.addEventListener('click', ev => ev.stopPropagation());
+          card.appendChild(det);
+        } else card.appendChild(el('p', 'sv-meta', 'Пока ни одного закрытого дела.'));
+        const row = el('div', 'sv-btns');
+        if (!sv.active) row.appendChild(btn('px-btn', 'ИГРАТЬ', ev => { ev.stopPropagation(); if (Saves.switchTo(sv.id)) go(); }));
+        row.appendChild(btn('px-btn dim', 'ПЕРЕИМЕНОВАТЬ', ev => {
+          ev.stopPropagation();
+          const head = card.querySelector('.sv-head'), inp = el('input', 'sv-rename'); inp.type = 'text'; inp.maxLength = 40; inp.value = sv.name;
+          const saveName = () => { if (Saves.rename(sv.id, inp.value) && sv.active) $('gameName').textContent = inp.value.trim(); renderSaves(); };
+          inp.onclick = x => x.stopPropagation();
+          inp.onkeydown = x => { x.stopPropagation(); if (x.key === 'Enter') saveName(); if (x.key === 'Escape') renderSaves(); };
+          inp.onblur = saveName;
+          head.replaceChildren(inp); inp.focus(); inp.select();
+        }));
+        if (!sv.active) {
+          const del = btn('px-btn dim sv-del', 'УДАЛИТЬ', ev => {
+            ev.stopPropagation();
+            if (!del.classList.contains('sure')) { del.classList.add('sure'); del.textContent = 'ТОЧНО УДАЛИТЬ?'; sfx('wrong'); return; }
+            Saves.remove(sv.id); sfx('scrape'); renderSaves();
+          });
+          row.appendChild(del);
+        }
+        card.appendChild(row);
+        box.appendChild(card);
+      });
+    }
+  }
+
   function init() {
     applySettings();
     initSettings();
@@ -1901,6 +1979,8 @@
       dl.appendChild(b);
     });
     $('diffBack').onclick = e => { e.stopPropagation(); $('diff').hidden = true; $(diffFrom).hidden = false; };
+
+    initSaves();
 
     let shown = false;
     const reveal = () => { if (shown) return; shown = true; $('files').hidden = false; $('pxSub').textContent = burning ? 'Готэм горит. Пять башен «Уэйн Энтерпрайзес» в огне. Бэт-сигнал сегодня не зажгут.' : 'Капитан Гордон передал папки. Стажировка продолжается.'; };
